@@ -29,18 +29,19 @@ async def handler(websocket):
     # print("handler")
     listener_task = asyncio.create_task(listen_for_messages(websocket))
     await asyncio.gather(listener_task)
+
 async def main():
     global ai
     print("AI interface started")
-    uri = "ws://localhost:7777"
-    websocket = websockets.connect(uri)
-    async for websocket in websockets.connect(uri, timeout=15, ping_timeout=None, ping_interval=None):
+    uri = "ws://localhost:7777/ws/ai/"
+    # websocket = websockets.connect(uri)
+    async with websockets.connect(uri) as websocket:
         print("Connected to server")
         await handler(websocket)
-        print("Game over")
+        # print("Game over")
         game_over.set()
     await game_over.wait()  # Attendre le signal de fin de jeu
-    websocket.close()
+    # websocket.close()
     await (websocket.wait_closed())
 
 
