@@ -10,6 +10,9 @@ ai = QL_AI(0, 0, 0, 0)
 
 async def listen_for_messages(websocket):
     global ai
+
+    print("in listen for messages")
+
     async for message in websocket:
         print(f"New message received {message}")
         event = json.loads(message)
@@ -17,7 +20,7 @@ async def listen_for_messages(websocket):
         if event["type"] == "setup":
             ai.fromDict(event)
             ai.init_ai_modes()
-            await websocket.send(json.dumps({"type": "setup"}))
+            await websocket.send(json.dumps({'type': 'setup'}))
         elif event["type"] == "start":
             # Signal pour démarrer la génération des états du jeu
             start_event.set()
@@ -26,7 +29,7 @@ async def listen_for_messages(websocket):
         await asyncio.sleep(0.001)
 
 async def handler(websocket):
-    # print("handler")
+    print("handler")
     listener_task = asyncio.create_task(listen_for_messages(websocket))
     await asyncio.gather(listener_task)
 
@@ -37,7 +40,9 @@ async def main():
     # websocket = websockets.connect(uri)
     async with websockets.connect(uri) as websocket:
         print("Connected to server")
-        await handler(websocket)
+        listener_task = asyncio.create_task(listen_for_messages(websocket))
+        await asyncio.gather(listener_task)
+        # await handler(websocket)
         # print("Game over")
         game_over.set()
     await game_over.wait()  # Attendre le signal de fin de jeu
