@@ -6,6 +6,7 @@ class QL_AI:
     
     def __init__(self, width, height, paddle_width, paddle_height) -> None:
         self.win_width = width
+        self.training = False
         self.win_height = height
         self.paddle_height = paddle_height
         self.paddle_width = paddle_width
@@ -66,6 +67,7 @@ class QL_AI:
 
 
     def getAction(self, state):
+
         if state not in self.qtable:
             self.qtable[state] = np.zeros(3)
         self.epsilon_greedy()

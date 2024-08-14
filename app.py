@@ -25,7 +25,7 @@ async def listen_for_messages(websocket):
             # Signal pour démarrer la génération des états du jeu
             start_event.set()
         elif event["type"] == "data":
-            ai.getAction(event)
+            ai.getAction(repr(event["state"]))
         await asyncio.sleep(0.001)
 
 async def handler(websocket):
@@ -40,8 +40,12 @@ async def main():
     # websocket = websockets.connect(uri)
     async with websockets.connect(uri) as websocket:
         print("Connected to server")
-        listener_task = asyncio.create_task(listen_for_messages(websocket))
-        await asyncio.gather(listener_task)
+
+        await listen_for_messages(websocket)
+        # listener_task = asyncio.create_task(listen_for_messages(websocket))
+        # await asyncio.gather(listener_task)
+
+
         # await handler(websocket)
         # print("Game over")
         game_over.set()
