@@ -78,8 +78,10 @@ class QL_AI:
                 action = np.argmax(self.qtable[state])
         else:
             action = np.argmax(self.qtable[state])
-        print(f"qtaable size: {len(self.qtable)}")
-        return action
+        # print(f"qtaable size: {len(self.qtable)}")
+        if action == 1:
+            return "up"
+        return "down"
     
 
     def upadateQTable(self, state, action, reward, nextState):
