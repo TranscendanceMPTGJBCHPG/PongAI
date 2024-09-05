@@ -57,7 +57,7 @@ async def handler(websocket):
 async def main():
     global ai
     print("AI interface started")
-    uri = "ws://server:8001/ws/pong/"
+    uri = "ws://server:8000/ws/pong/"
     # websocket = websockets.connect(uri)
     async with websockets.connect(uri) as websocket:
         print("Connected to server")
