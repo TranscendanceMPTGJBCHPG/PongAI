@@ -4,7 +4,7 @@ import random
 
 class QL_AI:
     
-    def __init__(self, width, height, paddle_width, paddle_height) -> None:
+    def __init__(self, width, height, paddle_width, paddle_height, difficulty) -> None:
         self.win_width = width
         self.training = False
         self.win_height = height
@@ -20,8 +20,9 @@ class QL_AI:
         self.episodes = []
         self.average = []
         self.name = "Test"
-        self.loading = False
+        self.loading = True
         self.difficulty = 0
+        self.load(f"AI_{difficulty}.pkl")
 
     def fromDict(self, data):
         self.win_width = data["width"]
