@@ -40,7 +40,7 @@ async def listen_for_messages(websocket, game_uid):
                 # message = await asyncio.wait_for(websocket.recv())
                 if time.time() - timestamp < 0.1:
                     timestamp = time.time()
-                print(f"New message received {message}")
+                # print(f"New message received {message}")
                 event = json.loads(message)
                 if event["type"] == "setup":
                     # # ai_instances[game_uid].fromDict(event)
@@ -118,7 +118,7 @@ async def listen_for_uid():
                 add_game_instance(uid)
                 print(f"UID: {uid}")
                 await join_game(uid)
-            await asyncio.sleep(10)
+            await asyncio.sleep(3)
         except urllib.error.HTTPError as e:
             print(e.reason)
 
