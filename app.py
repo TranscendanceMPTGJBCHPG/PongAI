@@ -40,13 +40,13 @@ async def listen_for_messages(websocket, game_uid):
                 # message = await asyncio.wait_for(websocket.recv())
                 if time.time() - timestamp < 0.1:
                     timestamp = time.time()
-                # print(f"New message received {message}")
+                print(f"AIIIIIIIIIIII: New message received {message}")
                 event = json.loads(message)
                 if event["type"] == "setup":
                     # # ai_instances[game_uid].fromDict(event)
                     # ai_instances[game_uid].init_ai_modes()
                     await websocket.send(json.dumps({'type': 'setup', 'sender': 'AI'}))
-                elif event["type"] == "data":
+                elif event["type"] == "None":
                     await process_and_send_action(websocket, event, game_uid)
                 await asyncio.sleep(0.001)
             except asyncio.TimeoutError:
@@ -58,7 +58,7 @@ async def listen_for_messages(websocket, game_uid):
         return
 
 async def process_and_send_action(websocket, event, uid):
-    action = game_instances[uid]['ai'].getAction(repr(event["state"]))
+    action = game_instances[uid]['ai'].getAction(event)
     await websocket.send(json.dumps({"type": "move", "direction": str(action), 'sender': 'AI'}))
     print(f"Sent action: {action}")
 async def handler(websocket):

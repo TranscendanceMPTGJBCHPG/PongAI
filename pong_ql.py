@@ -6,7 +6,7 @@ class QL_AI:
     
     def __init__(self, width, height, paddle_width, paddle_height, difficulty) -> None:
         self.win_width = width
-        self.training = False
+        self.training = True
         self.win_height = height
         self.paddle_height = paddle_height
         self.paddle_width = paddle_width
@@ -14,15 +14,15 @@ class QL_AI:
         self.gamma = 0.7
         self.epsilon_decay = 0.00001 #baisse du taux d'apprentissage au fur et a mesure du jeu
         self.epsilon_min = 0.01
-        self.epsilon = 0 # 1 = uniquement exploration
+        self.epsilon = 1 # 1 = uniquement exploration
         self.qtable = {}
         self.rewards = []
         self.episodes = []
         self.average = []
         self.name = "Test"
-        self.loading = True
-        self.difficulty = 0
-        self.load(f"AI_{difficulty}.pkl")
+        self.loading = False
+        self.difficulty = 3
+        # self.load(f"AI_{difficulty}.pkl")
 
     def fromDict(self, data):
         self.win_width = data["width"]
@@ -66,23 +66,61 @@ class QL_AI:
                     return closest_state
         return closest_state
 
+    def convert_state(self, state):
+        print("in convert states, state: ", state)
+        print("state type: ", type(state))
+
+        res = []
+
+        res.append(int(state["ball"]["x"] * self.win_height // 75))
+        # res = res.append(int(self.ball.x / 75))
+        res.append(int(state["ball"]["y"] * self.win_width // 75))
+        # res.append(int(self.ball.y / 75))
+        res.append(int(state["ball"]["rounded_angle"]))
+        # res.append(round(math.atan2(self.ball.y_vel, self.ball.x_vel) * 2) / 2)
+        res.append(int((state["paddle2"]["y"] * self.paddle_height + self.paddle_height / 2) / 75))
+        # res.append(int((self.paddle2.y + self.paddle2.height / 2) / 75))
+        res.append((state["ball"]["next_collision"]))
+
+        return res
+
 
     def getAction(self, state):
 
-        if state not in self.qtable:
-            self.qtable[state] = np.zeros(3)
+        print(f"in get action, paddle_y: {state['paddle2']['y']}, ball_y: {state['ball']['y']}, ball_x: {state['ball']['x']}, ball_angle: {state['ball']['rounded_angle']}")
+
+        state = self.convert_state(state)
+
+        nextCollision = state.pop()
+        stateRepr = repr(state)
+
+        if stateRepr not in self.qtable:
+            self.qtable[stateRepr] = np.zeros(3)
         self.epsilon_greedy()
         if self.training == True:
             if np.random.uniform() < self.epsilon:
                 action = np.random.choice(3)
             else:
-                action = np.argmax(self.qtable[state])
+                action = np.argmax(self.qtable[repr(state)])
         else:
-            action = np.argmax(self.qtable[state])
+            action = np.argmax(self.qtable[repr(state)])
         # print(f"qtaable size: {len(self.qtable)}")
+        nextState = self.calculateNextState(state, action)
+        reward = self.getReward(nextCollision, action, state[3], self.difficulty)
+        self.upadateQTable(repr(state), action, reward, repr(nextState))
         if action == 1:
             return "up"
-        return "down"
+        elif action == 2:
+            return "down"
+        return "still"
+
+    def calculateNextState(self, state, action):
+        nextState = state.copy()
+        if action == 1:
+            nextState[3] += 1
+        elif action == 2:
+            nextState[3] -= 1
+        return nextState
     
 
     def upadateQTable(self, state, action, reward, nextState):
@@ -133,7 +171,6 @@ class QL_AI:
                     result = minReward
                 else:
                     result = maxReward
-
         return result
      
     def save(self, name):
