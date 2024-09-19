@@ -40,7 +40,7 @@ async def listen_for_messages(websocket, game_uid):
                 # message = await asyncio.wait_for(websocket.recv())
                 if time.time() - timestamp < 0.1:
                     timestamp = time.time()
-                print(f"AIIIIIIIIIIII: New message received {message}")
+                # print(f"AIIIIIIIIIIII: New message received {message}")
                 event = json.loads(message)
                 if event["type"] == "setup":
                     # # ai_instances[game_uid].fromDict(event)
@@ -61,6 +61,7 @@ async def process_and_send_action(websocket, event, uid):
     action = game_instances[uid]['ai'].getAction(event)
     await websocket.send(json.dumps({"type": "move", "direction": str(action), 'sender': 'AI'}))
     print(f"Sent action: {action}")
+
 async def handler(websocket):
     print("handler")
     listener_task = asyncio.create_task(listen_for_messages(websocket))
@@ -68,7 +69,7 @@ async def handler(websocket):
 
 async def get_uri():
     try:
-        url = 'http://nginx:81/game/new/'
+        url = 'http://nginx:7777/game/new/'
         data = {
             'type': 'PVE',
             'sender': 'AI'
@@ -102,7 +103,7 @@ async def join_game(uid):
         await listen_for_messages(websocket, uid)
 
 async def listen_for_uid():
-    url = "http://nginx:81/game/new/?mode=AI"
+    url = "http://nginx:7777/game/new/?mode=AI"
     while True:
         #fetch the url to get the uid
         try:

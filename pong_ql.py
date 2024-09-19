@@ -67,32 +67,49 @@ class QL_AI:
         return closest_state
 
     def convert_state(self, state):
-        print("in convert states, state: ", state)
-        print("state type: ", type(state))
-
         res = []
-
-        res.append(int(state["ball"]["x"] * self.win_height // 75))
-        # res = res.append(int(self.ball.x / 75))
-        res.append(int(state["ball"]["y"] * self.win_width // 75))
-        # res.append(int(self.ball.y / 75))
-        res.append(int(state["ball"]["rounded_angle"]))
-        # res.append(round(math.atan2(self.ball.y_vel, self.ball.x_vel) * 2) / 2)
-        res.append(int((state["paddle2"]["y"] * self.paddle_height + self.paddle_height / 2) / 75))
-        # res.append(int((self.paddle2.y + self.paddle2.height / 2) / 75))
-        res.append((state["ball"]["next_collision"]))
-
+    
+        res.append(self.round_to_nearest_5_cent(state["ball"]["x"]))
+        res.append(self.round_to_nearest_5_cent(state["ball"]["y"]))
+        res.append(state["ball"]["rounded_angle"])
+        res.append(self.round_to_nearest_5_cent(state["paddle2"]["y"] + ((self.paddle_height / 2) / self.win_height)))
+        res.append(state["ball"]["next_collision"])
+        res[4][1] = round(res[4][1] / self.win_height, 2)
+    
+        print(f"converted state: {res}")
+    
         return res
+    
+    def round_to_nearest_5_cent(self, value):
+        value_in_cents = value * 100
+        rounded_value_in_cents = round(value_in_cents / 5) * 5
+        return rounded_value_in_cents / 100
+    
+    def handle_pause(self, state):
+        paddle_position = state[3]
+        if paddle_position > 0.52:
+            return "up"
+        elif paddle_position < 0.48:
+            return "down"
+        return "still"
 
 
-    def getAction(self, state):
+    def getAction(self, initial_state):
 
-        print(f"in get action, paddle_y: {state['paddle2']['y']}, ball_y: {state['ball']['y']}, ball_x: {state['ball']['x']}, ball_angle: {state['ball']['rounded_angle']}")
+        print(f"in get action, state = {initial_state}")
 
-        state = self.convert_state(state)
+        state = self.convert_state(initial_state)
 
+        paddle_pos_from_0_to_1 = state[3]
+
+        print(f"paddle_pos_from_0_to_1: {paddle_pos_from_0_to_1}")
+
+        if initial_state['game']['pause'] == True:
+            return self.handle_pause(initial_state)
+        
         nextCollision = state.pop()
         stateRepr = repr(state)
+        print(f"stateRepr: {stateRepr}")
 
         if stateRepr not in self.qtable:
             self.qtable[stateRepr] = np.zeros(3)
@@ -101,13 +118,13 @@ class QL_AI:
             if np.random.uniform() < self.epsilon:
                 action = np.random.choice(3)
             else:
-                action = np.argmax(self.qtable[repr(state)])
+                action = np.argmax(self.qtable[stateRepr])
         else:
-            action = np.argmax(self.qtable[repr(state)])
+            action = np.argmax(self.qtable[stateRepr])
         # print(f"qtaable size: {len(self.qtable)}")
-        nextState = self.calculateNextState(state, action)
+        # nextState = self.calculateNextState(state, action)
         reward = self.getReward(nextCollision, action, state[3], self.difficulty)
-        self.upadateQTable(repr(state), action, reward, repr(nextState))
+        self.upadateQTable(repr(state), action, reward, repr(state))
         if action == 1:
             return "up"
         elif action == 2:
@@ -125,52 +142,90 @@ class QL_AI:
 
     def upadateQTable(self, state, action, reward, nextState):
 
+        print(f"in update qtable, state: {state}, nextState: {nextState}")
         if nextState not in self.qtable:
             self.qtable[nextState] = np.zeros(3)
         tdTarget = reward + self.gamma * np.max(self.qtable[nextState])
         tdError = tdTarget - self.qtable[state][action]
         self.qtable[state][action] += self.alpha * tdError
 
+    def determine_collision(self, next_collision, paddle_position):
+        #calculate bottom - 5 of paddle in percentage of window height
+
+        #0.5 + ((166 / 2 + 5) / 1000)
+        #calculate top - 5 of paddle in percentage of window height
+        security_margin = 5 / self.win_height
+        margin_from_middle = self.paddle_height / 2 / self.win_height - security_margin
+
+        print(f"security margin: {security_margin}, margin from middle: {margin_from_middle}")
+
+        top_paddle = round(paddle_position - security_margin, 2)
+        bottom_paddle = round(paddle_position + security_margin, 2)
+
+        print(f"got in determine collision, next_collision: {next_collision}, paddle_position: {paddle_position}")
+        print(f"bottom_paddle: {bottom_paddle}, top_paddle: {top_paddle}")
+        if next_collision > bottom_paddle:
+            print("collision will be below paddle")
+            return 1
+        elif next_collision < top_paddle:
+            print("collision will be above paddle")
+            return -1
+        return 0
+
 
     def getReward(self, nextCollision, action, previousPosition, difficulty):
+
+        up = 1
+        down = 2
+        still = 0
 
         maxReward = 10
         minReward = -10
         result:int = 0
 
+        print(f"nextCollision: {nextCollision}, action: {action}, previousPosition: {previousPosition}, difficulty: {difficulty}")
+
+        # 0 = collision on paddle, 1 = collision below paddle, -1 = collision above paddle
+        relative_collision = self.determine_collision(nextCollision[1], previousPosition)
+
         if difficulty == 1:
             nextCollision[1] += random.randint(-5, 5)
         if nextCollision[0] == 1:
-            if action == 1:
-                if nextCollision[1] < (previousPosition + self.paddle_height // 2):
+            # paddle_position = previousPosition + (self.paddle_height // 2 // self.win_height)
+            #calculate the size of the paddle reltive to the window
+            # print(self.paddle_height // 2 // self.win_height)
+            # print(f"paddle_position: {paddle_position}")
+            if action == up:
+                if relative_collision == -1:
                     result = maxReward
                 else:
                     result = minReward
-            elif action == 2:
-                if nextCollision[1] > (previousPosition + self.paddle_height // 2):
+            elif action == down:
+                if relative_collision == 1:
                     result = maxReward
                 else:
                     result = minReward
-            elif action == 0:
-                if previousPosition + self.paddle_height // 2 >= nextCollision[1] - 10 and previousPosition + self.paddle_height // 2 <= nextCollision[1] + 10:
+            elif action == still:
+                if relative_collision == 0:
                     result = maxReward
                 else:
                     result = minReward
         else:
             if difficulty == 3:
-                if action == 1 and nextCollision[1] < previousPosition + self.paddle_height and previousPosition > self.win_height // 4:
+                if action == up and nextCollision[1] < previousPosition and previousPosition > 0.25:
                     result = maxReward
-                elif action == 2 and nextCollision[1] > previousPosition + self.paddle_height and previousPosition + self.paddle_height < self.win_height * 0.75:
+                elif action == down and nextCollision[1] > previousPosition and previousPosition < 0.75:
                     result = maxReward
-                elif action == 0 and abs(nextCollision[1] - previousPosition) < self.paddle_height and previousPosition > self.win_height // 4 and previousPosition + self.paddle_height < self.win_height * 0.75:
+                elif action == still and abs(nextCollision[1] - previousPosition) < self.paddle_height / 1000 and previousPosition > self.win_height // 4 // 1000 and previousPosition < 0.75:
                     result = maxReward
                 else:
                     result = minReward
             else:
-                if action == 1 or action == 2:
+                if action == up or action == down:
                     result = minReward
                 else:
                     result = maxReward
+        print(f"reward: {result}")
         return result
      
     def save(self, name):
