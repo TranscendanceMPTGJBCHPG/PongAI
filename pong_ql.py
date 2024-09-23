@@ -7,26 +7,43 @@ class QL_AI:
     
     def __init__(self, width, height, paddle_width, paddle_height, difficulty) -> None:
         self.win_width = width
-        self.training = True
+        self.training = False
         self.win_height = height
         self.paddle_height = paddle_height
         self.paddle_width = paddle_width
+
         self.alpha = 0.4
         self.gamma = 0.7
-        self.epsilon_decay = 0.00001 #baisse du taux d'apprentissage au fur et a mesure du jeu
+        self.epsilon_decay = 0.0001 #baisse du taux d'apprentissage au fur et a mesure du jeu
         self.epsilon_min = 0.01
-        self.epsilon = 1 # 1 = uniquement exploration
+
+        self.difficulty = difficulty
+        self.saving = False
+        self.loading = True
+
+        if self.training == True:
+            if self.loading == True:
+                self.epsilon = 0.5
+            else:
+                self.epsilon = 1
+        else:
+            self.epsilon = 0
+        # self.epsilon = 1 # 1 = uniquement exploration
         self.qtable = {}
         self.rewards = []
         self.episodes = []
         self.average = []
         self.name = "Test"
-        self.loading = False
-        self.difficulty = 3
         self.state = None
         self.last_state_timestamp = 0
         self.nextCollision = None
+
+        self.counter = 0
+
+        if self.loading == True:
+            self.init_ai_modes()
         # self.load(f"AI_{difficulty}.pkl")
+
 
     def fromDict(self, data):
         self.win_width = data["width"]
@@ -37,15 +54,16 @@ class QL_AI:
         self.loading = data["loading"]
         self.init_ai_modes()
 
+
     def init_ai_modes(self):
         if self.loading == True:
             if self.difficulty == 3:
-                self.load("AI_hard.pkl")
+                self.load("ai_data/AI_hard.pkl")
                 print("hard AI loaded")
             elif self.difficulty == 2:
-                self.load("AI_medium.pkl")
+                self.load("ai_data/AI_medium.pkl")
             elif self.difficulty == 1:
-                self.load("AI_easy.pkl")
+                self.load("ai_data/AI_easy.pkl")
 
 
 
@@ -70,6 +88,7 @@ class QL_AI:
                     return closest_state
         return closest_state
 
+
     def convert_state(self, state) -> list:
         res = []
 
@@ -79,22 +98,45 @@ class QL_AI:
             return self.state
         self.last_state_timestamp = current_timestamp
 
-        res.append(self.round_to_nearest_5_cent(state["ball"]["x"]))
-        res.append(self.round_to_nearest_5_cent(state["ball"]["y"]))
-        res.append(state["ball"]["rounded_angle"])
-        res.append(self.round_to_nearest_5_cent(state["paddle2"]["y"]))
+        # res.append(self.round_to_nearest_5_cent(state["ball"]["x"]))
+        # res.append(self.round_to_nearest_5_cent(state["ball"]["y"]))
+        # res.append(round(state["ball"]["rounded_angle"], 1))
+        # res.append(self.round_to_nearest_5_cent(state["paddle2"]["y"]))
+        # res.append(state["ball"]["next_collision"])
+        # res[4][1] = round(res[4][1] / self.win_height, 2)
+
+        res.append(round(state["ball"]["x"], 1))
+        res.append(round(state["ball"]["y"], 1))
+        res.append(round(state["ball"]["rounded_angle"], 1))
+        res.append(round(state["paddle2"]["y"], 1))
         res.append(state["ball"]["next_collision"])
-        res[4][1] = round(res[4][1] / self.win_height, 2)
+        res[4][1] = round(res[4][1] / self.win_height, 1)
+
+        self.nextCollision = res.pop()
     
         print(f"converted state: {res}")
+
+        if self.nextCollision[0] == 0:
+            return self.ball_is_moving_away(res)
     
         return res
     
+
+    def ball_is_moving_away(self, state):
+        res = []
+
+        res.append(state[1])
+        res.append(state[3])
+
+        return res
+    
+
     def round_to_nearest_5_cent(self, value):
         value_in_cents = value * 100
-        rounded_value_in_cents = round(value_in_cents / 5) * 5
+        rounded_value_in_cents = round(value_in_cents / 2) * 2
         return rounded_value_in_cents / 100
     
+
     def handle_pause(self, state):
         paddle_position = state["paddle2"]["y"]
         if paddle_position > 0.52:
@@ -104,7 +146,7 @@ class QL_AI:
         return "still"
 
 
-    def getAction(self, initial_state):
+    async def getAction(self, initial_state):
 
         print(f"in get action, state = {initial_state}")
 
@@ -117,7 +159,6 @@ class QL_AI:
         if initial_state['game']['pause'] == True:
             return self.handle_pause(initial_state)
         #get last element of the list state
-        self.nextCollision = self.state.pop()
         stateRepr = repr(self.state)
         print(f"stateRepr: {stateRepr}")
 
@@ -135,11 +176,30 @@ class QL_AI:
         # nextState = self.calculateNextState(state, action)
         reward = self.getReward(self.nextCollision, action, self.state[3], self.difficulty)
         self.upadateQTable(repr(self.state), action, reward, repr(self.state))
+
+        print(f"qtable size: {len(self.qtable)}")
+        self.counter += 1
+        if self.counter == 100:
+            await self.save_wrapper()
+            self.counter = 0
+            print("\n\n\n\nsaved\n\n\n\n")
+            
         if action == 1:
             return "up"
         elif action == 2:
             return "down"
         return "still"
+    
+
+    async def save_wrapper(self):
+        if self.saving == True:
+            if self.difficulty == 3:
+                await self.save("hard")
+            elif self.difficulty == 2:
+                await self.save("medium")
+            elif self.difficulty == 1:
+                await self.save("easy")
+
 
     def calculateNextState(self, state, action):
         nextState = state.copy()
@@ -158,6 +218,7 @@ class QL_AI:
         tdTarget = reward + self.gamma * np.max(self.qtable[nextState])
         tdError = tdTarget - self.qtable[state][action]
         self.qtable[state][action] += self.alpha * tdError
+
 
     def determine_collision(self, next_collision, paddle_position):
         #calculate bottom - 5 of paddle in percentage of window height
@@ -237,10 +298,31 @@ class QL_AI:
                     result = maxReward
         print(f"reward: {result}")
         return result
-     
-    def save(self, name):
-        with open(f"AI_{name}.pkl", 'wb') as file:
-            pickle.dump(self.qtable, file)
+
+
+    async def save(self, name):
+
+        import os
+        file_path = f"/app/ai_data/AI_{name}.pkl"
+
+        try:
+            #save qtable in current directory
+            with open(file_path, 'wb') as file:
+                #show path of the saved file
+                print(f"saved at {file}")
+
+
+                pickle.dump(self.qtable, file)
+                print("saved")
+                # exit()
+
+            # with open(f"./AI_{name}.pkl", 'wb') as file:
+            #     pickle.dump(self.qtable, file)
+            #     print("saved")
+            #     exit()
+        except Exception as e:
+            print(f"Error in save: {e}")
+
 
     def load(self, name):
         with open(name, 'rb') as file:

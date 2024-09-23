@@ -18,9 +18,9 @@ game_over = asyncio.Event()
 # ai_hard = QL_AI(2, 2, 2, 2)
 
 ai_instances = {}
-ai_instances['easy'] = QL_AI(1500, 1000, 6, 166, "easy")
-ai_instances['medium'] = QL_AI(1500, 1000, 6, 166, "medium")
-ai_instances['hard'] = QL_AI(1500, 1000, 6, 166, "hard")
+ai_instances['easy'] = QL_AI(1500, 1000, 6, 166, 1)
+ai_instances['medium'] = QL_AI(1500, 1000, 6, 166, 2)
+ai_instances['hard'] = QL_AI(1500, 1000, 6, 166, 3)
 
 game_instances = {}
 
@@ -58,7 +58,7 @@ async def listen_for_messages(websocket, game_uid):
         return
 
 async def process_and_send_action(websocket, event, uid):
-    action = game_instances[uid]['ai'].getAction(event)
+    action = await game_instances[uid]['ai'].getAction(event)
     await websocket.send(json.dumps({"type": "move", "direction": str(action), 'sender': 'AI'}))
     print(f"Sent action: {action}")
 
