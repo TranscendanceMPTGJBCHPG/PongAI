@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 import random
+import time
 
 class QL_AI:
     
@@ -22,6 +23,9 @@ class QL_AI:
         self.name = "Test"
         self.loading = False
         self.difficulty = 3
+        self.state = None
+        self.last_state_timestamp = 0
+        self.nextCollision = None
         # self.load(f"AI_{difficulty}.pkl")
 
     def fromDict(self, data):
@@ -66,9 +70,15 @@ class QL_AI:
                     return closest_state
         return closest_state
 
-    def convert_state(self, state):
+    def convert_state(self, state) -> list:
         res = []
-    
+
+        current_timestamp = time.time()
+        print(f"current timestamp: {current_timestamp}, last timestamp: {self.last_state_timestamp}")
+        if current_timestamp - self.last_state_timestamp < 1 and self.training == False:
+            return self.state
+        self.last_state_timestamp = current_timestamp
+
         res.append(self.round_to_nearest_5_cent(state["ball"]["x"]))
         res.append(self.round_to_nearest_5_cent(state["ball"]["y"]))
         res.append(state["ball"]["rounded_angle"])
@@ -98,17 +108,17 @@ class QL_AI:
 
         print(f"in get action, state = {initial_state}")
 
-        state = self.convert_state(initial_state)
+        self.state = self.convert_state(initial_state)
 
-        paddle_pos_from_0_to_1 = state[3]
+        paddle_pos_from_0_to_1 = self.state[3]
 
         print(f"paddle_pos_from_0_to_1: {paddle_pos_from_0_to_1}")
 
         if initial_state['game']['pause'] == True:
             return self.handle_pause(initial_state)
-        
-        nextCollision = state.pop()
-        stateRepr = repr(state)
+        #get last element of the list state
+        self.nextCollision = self.state.pop()
+        stateRepr = repr(self.state)
         print(f"stateRepr: {stateRepr}")
 
         if stateRepr not in self.qtable:
@@ -123,8 +133,8 @@ class QL_AI:
             action = np.argmax(self.qtable[stateRepr])
         # print(f"qtaable size: {len(self.qtable)}")
         # nextState = self.calculateNextState(state, action)
-        reward = self.getReward(nextCollision, action, state[3], self.difficulty)
-        self.upadateQTable(repr(state), action, reward, repr(state))
+        reward = self.getReward(self.nextCollision, action, self.state[3], self.difficulty)
+        self.upadateQTable(repr(self.state), action, reward, repr(self.state))
         if action == 1:
             return "up"
         elif action == 2:
