@@ -72,7 +72,7 @@ class QL_AI:
         res.append(self.round_to_nearest_5_cent(state["ball"]["x"]))
         res.append(self.round_to_nearest_5_cent(state["ball"]["y"]))
         res.append(state["ball"]["rounded_angle"])
-        res.append(self.round_to_nearest_5_cent(state["paddle2"]["y"] + ((self.paddle_height / 2) / self.win_height)))
+        res.append(self.round_to_nearest_5_cent(state["paddle2"]["y"]))
         res.append(state["ball"]["next_collision"])
         res[4][1] = round(res[4][1] / self.win_height, 2)
     
@@ -86,7 +86,7 @@ class QL_AI:
         return rounded_value_in_cents / 100
     
     def handle_pause(self, state):
-        paddle_position = state[3]
+        paddle_position = state["paddle2"]["y"]
         if paddle_position > 0.52:
             return "up"
         elif paddle_position < 0.48:
