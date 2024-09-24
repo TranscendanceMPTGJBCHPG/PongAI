@@ -6,8 +6,9 @@ import time
 class QL_AI:
     
     def __init__(self, width, height, paddle_width, paddle_height, difficulty) -> None:
+
+        self.raw_position = None
         self.win_width = width
-        self.training = True
         self.win_height = height
         self.paddle_height = paddle_height
         self.paddle_width = paddle_width
@@ -18,17 +19,17 @@ class QL_AI:
         self.epsilon_min = 0.01
 
         self.difficulty = difficulty
+        self.training = False
         self.saving = False
-        self.loading = False
+        self.loading = True
 
         if self.training == True:
             if self.loading == True:
                 self.epsilon = 0.5
             else:
-                self.epsilon = 1
+                self.epsilon = 1 # 1 = uniquement exploration
         else:
             self.epsilon = 0
-        # self.epsilon = 1 # 1 = uniquement exploration
         self.qtable = {}
         self.rewards = []
         self.episodes = []
@@ -42,7 +43,6 @@ class QL_AI:
 
         if self.loading == True:
             self.init_ai_modes()
-        # self.load(f"AI_{difficulty}.pkl")
 
 
     def fromDict(self, data):
@@ -94,22 +94,23 @@ class QL_AI:
 
         current_timestamp = time.time()
         print(f"current timestamp: {current_timestamp}, last timestamp: {self.last_state_timestamp}")
+
+        self.raw_position = state["paddle2"]["y"]
+
         if current_timestamp - self.last_state_timestamp < 1 and self.training == False:
+            self.state[3] = round(self.raw_position, 1)
             return self.state
         self.last_state_timestamp = current_timestamp
-
-        # res.append(self.round_to_nearest_5_cent(state["ball"]["x"]))
-        # res.append(self.round_to_nearest_5_cent(state["ball"]["y"]))
-        # res.append(round(state["ball"]["rounded_angle"], 1))
-        # res.append(self.round_to_nearest_5_cent(state["paddle2"]["y"]))
-        # res.append(state["ball"]["next_collision"])
-        # res[4][1] = round(res[4][1] / self.win_height, 2)
 
         res.append(round(state["ball"]["x"], 1))
         res.append(round(state["ball"]["y"], 1))
         res.append(round(state["ball"]["rounded_angle"], 1))
         res.append(round(state["paddle2"]["y"], 1))
         res.append(state["ball"]["next_collision"])
+
+        #nerfing AI accuracy for easy mode
+        if self.difficulty == 1:
+            res[4][1] += random.randint(-10, 10)
         res[4][1] = round(res[4][1] / self.win_height, 1)
 
         self.nextCollision = res.pop()
@@ -131,12 +132,6 @@ class QL_AI:
         return res
     
 
-    def round_to_nearest_5_cent(self, value):
-        value_in_cents = value * 100
-        rounded_value_in_cents = round(value_in_cents / 2) * 2
-        return rounded_value_in_cents / 100
-    
-
     def handle_pause(self, state):
         paddle_position = state["paddle2"]["y"]
         if paddle_position > 0.52:
@@ -154,13 +149,13 @@ class QL_AI:
 
         paddle_pos_from_0_to_1 = self.state[3]
 
-        print(f"paddle_pos_from_0_to_1: {paddle_pos_from_0_to_1}")
+        # print(f"paddle_pos_from_0_to_1: {paddle_pos_from_0_to_1}")
 
         if initial_state['game']['pause'] == True:
             return self.handle_pause(initial_state)
         #get last element of the list state
         stateRepr = repr(self.state)
-        print(f"stateRepr: {stateRepr}")
+        # print(f"stateRepr: {stateRepr}")
 
         if stateRepr not in self.qtable:
             self.qtable[stateRepr] = np.zeros(3)
@@ -172,17 +167,19 @@ class QL_AI:
                 action = np.argmax(self.qtable[stateRepr])
         else:
             action = np.argmax(self.qtable[stateRepr])
-        # print(f"qtaable size: {len(self.qtable)}")
-        # nextState = self.calculateNextState(state, action)
+
         reward = self.getReward(self.nextCollision, action, self.state[3], self.difficulty)
         self.upadateQTable(repr(self.state), action, reward, repr(self.state))
 
         print(f"qtable size: {len(self.qtable)}")
+        if (len(self.qtable) >= 8000) and self.saving == True:
+            self.save_wrapper()
+            exit()
         self.counter += 1
         if self.counter == 100:
             await self.save_wrapper()
             self.counter = 0
-            print("\n\n\n\nsaved\n\n\n\n")
+            # print("\n\n\n\nsaved\n\n\n\n")
             
         if action == 1:
             return "up"
@@ -212,7 +209,7 @@ class QL_AI:
 
     def upadateQTable(self, state, action, reward, nextState):
 
-        print(f"in update qtable, state: {state}, nextState: {nextState}")
+        # print(f"in update qtable, state: {state}, nextState: {nextState}")
         if nextState not in self.qtable:
             self.qtable[nextState] = np.zeros(3)
         tdTarget = reward + self.gamma * np.max(self.qtable[nextState])
@@ -221,25 +218,22 @@ class QL_AI:
 
 
     def determine_collision(self, next_collision, paddle_position):
-        #calculate bottom - 5 of paddle in percentage of window height
 
-        #0.5 + ((166 / 2 + 5) / 1000)
-        #calculate top - 5 of paddle in percentage of window height
         security_margin = 5 / self.win_height
         margin_from_middle = self.paddle_height / 2 / self.win_height - security_margin
 
-        print(f"security margin: {security_margin}, margin from middle: {margin_from_middle}")
+        # print(f"security margin: {security_margin}, margin from middle: {margin_from_middle}")
 
         top_paddle = round(paddle_position - security_margin, 2)
         bottom_paddle = round(paddle_position + security_margin, 2)
 
-        print(f"got in determine collision, next_collision: {next_collision}, paddle_position: {paddle_position}")
-        print(f"bottom_paddle: {bottom_paddle}, top_paddle: {top_paddle}")
+        # print(f"got in determine collision, next_collision: {next_collision}, paddle_position: {paddle_position}")
+        # print(f"bottom_paddle: {bottom_paddle}, top_paddle: {top_paddle}")
         if next_collision > bottom_paddle:
-            print("collision will be below paddle")
+            # print("collision will be below paddle")
             return 1
         elif next_collision < top_paddle:
-            print("collision will be above paddle")
+            # print("collision will be above paddle")
             return -1
         return 0
 
@@ -254,18 +248,13 @@ class QL_AI:
         minReward = -10
         result:int = 0
 
-        print(f"nextCollision: {nextCollision}, action: {action}, previousPosition: {previousPosition}, difficulty: {difficulty}")
+        # print(f"nextCollision: {nextCollision}, action: {action}, previousPosition: {previousPosition}, difficulty: {difficulty}")
 
-        # 0 = collision on paddle, 1 = collision below paddle, -1 = collision above paddle
         relative_collision = self.determine_collision(nextCollision[1], previousPosition)
 
         if difficulty == 1:
             nextCollision[1] += random.randint(-5, 5)
         if nextCollision[0] == 1:
-            # paddle_position = previousPosition + (self.paddle_height // 2 // self.win_height)
-            #calculate the size of the paddle reltive to the window
-            # print(self.paddle_height // 2 // self.win_height)
-            # print(f"paddle_position: {paddle_position}")
             if action == up:
                 if relative_collision == -1:
                     result = maxReward
@@ -306,22 +295,15 @@ class QL_AI:
         file_path = f"/app/ai_data/AI_{name}.pkl"
 
         try:
-            #save qtable in current directory
+            #save qtable in ai_data directory
             with open(file_path, 'wb') as file:
-                #show path of the saved file
-                print(f"saved at {file}")
-
-
+                # print(f"saved at {file}")
                 pickle.dump(self.qtable, file)
-                print("saved")
-                # exit()
-
-            # with open(f"./AI_{name}.pkl", 'wb') as file:
-            #     pickle.dump(self.qtable, file)
-            #     print("saved")
-            #     exit()
+                # print("saved")
+                # file.close()
         except Exception as e:
             print(f"Error in save: {e}")
+            file.close()
 
 
     def load(self, name):
@@ -330,7 +312,6 @@ class QL_AI:
             print(f"Le fichier {name} n'existe pas.")
             return None
 
-    # Vérifier si le fichier est vide
         if os.path.getsize(name) == 0:
             print(f"Le fichier {name} est vide.")
             return None
@@ -338,9 +319,11 @@ class QL_AI:
         try:
             with open(name, 'rb') as file:
                 self.qtable = pickle.load(file)
+                # file.close()
 
         except Exception as e:
             print(f"Error in load: {e}")
+            # file.close()
             return None
 
 

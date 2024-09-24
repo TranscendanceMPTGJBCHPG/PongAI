@@ -6,16 +6,9 @@ import asyncio
 import json
 import urllib.request
 import urllib.error
-import sys
-
-
 
 start_event = asyncio.Event()
 game_over = asyncio.Event()
-
-# ai_easy = QL_AI(0, 0, 0, 0)
-# ai_medium = QL_AI(1, 1, 1, 1)
-# ai_hard = QL_AI(2, 2, 2, 2)
 
 ai_instances = {}
 ai_instances['easy'] = QL_AI(1500, 1000, 6, 166, 1)
@@ -37,14 +30,10 @@ async def listen_for_messages(websocket, game_uid):
         while True:
             try:
                 message = await websocket.recv()
-                # message = await asyncio.wait_for(websocket.recv())
                 if time.time() - timestamp < 0.1:
                     timestamp = time.time()
-                # print(f"AIIIIIIIIIIII: New message received {message}")
                 event = json.loads(message)
                 if event["type"] == "setup":
-                    # # ai_instances[game_uid].fromDict(event)
-                    # ai_instances[game_uid].init_ai_modes()
                     await websocket.send(json.dumps({'type': 'setup', 'sender': 'AI'}))
                 elif event["type"] == "None":
                     await process_and_send_action(websocket, event, game_uid)
@@ -57,15 +46,18 @@ async def listen_for_messages(websocket, game_uid):
         game_over.set()
         return
 
+
 async def process_and_send_action(websocket, event, uid):
     action = await game_instances[uid]['ai'].getAction(event)
     await websocket.send(json.dumps({"type": "move", "direction": str(action), 'sender': 'AI'}))
     print(f"Sent action: {action}")
 
+
 async def handler(websocket):
     print("handler")
     listener_task = asyncio.create_task(listen_for_messages(websocket))
     await asyncio.gather(listener_task)
+
 
 async def get_uri():
     try:
@@ -85,7 +77,6 @@ async def get_uri():
         req = urllib.request.Request(url, data=data, headers=headers, method='GET')
 
         with urllib.request.urlopen(req) as response:
-            #turn response into json
             data = json.loads(response.read())
             print(f"UID: {data['uid']}")
             return data['uid']
@@ -93,15 +84,19 @@ async def get_uri():
     except urllib.error.HTTPError as e:
         print(e.reason)
 
+
 # Réception d'UID de jeu via le serveur AI
 async def join_game(uid):
     uri = f"ws://server:8000/ws/pong/{uid}/"
     async with websockets.connect(uri) as websocket:
-        print(f"IA connectée à la partie {uid}")
+        # print(f"IA connectée à la partie {uid}")
         await websocket.send(json.dumps({"type": "greetings", "sender": "AI"}))
-        print("Message de salutation envoyé")
+        # print("Message de salutation envoyé")
         await listen_for_messages(websocket, uid)
 
+
+# Continuously fetching the route 'http://nginx:7777/game/new/?mode=AI'
+# On response, get the uid and join the game
 async def listen_for_uid():
     url = "http://nginx:7777/game/new/?mode=AI"
     while True:
@@ -117,7 +112,7 @@ async def listen_for_uid():
             else:
                 uid = data['uid']
                 add_game_instance(uid)
-                print(f"UID: {uid}")
+                # print(f"UID: {uid}")
                 await join_game(uid)
             await asyncio.sleep(3)
         except urllib.error.HTTPError as e:
