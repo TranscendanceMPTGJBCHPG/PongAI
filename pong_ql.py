@@ -7,7 +7,7 @@ class QL_AI:
     
     def __init__(self, width, height, paddle_width, paddle_height, difficulty) -> None:
         self.win_width = width
-        self.training = False
+        self.training = True
         self.win_height = height
         self.paddle_height = paddle_height
         self.paddle_width = paddle_width
@@ -19,7 +19,7 @@ class QL_AI:
 
         self.difficulty = difficulty
         self.saving = False
-        self.loading = True
+        self.loading = False
 
         if self.training == True:
             if self.loading == True:
@@ -58,7 +58,7 @@ class QL_AI:
     def init_ai_modes(self):
         if self.loading == True:
             if self.difficulty == 3:
-                self.load("ai_data/AI_hard.pkl")
+                self.load("/app/ai_data/AI_hard.pkl")
                 print("hard AI loaded")
             elif self.difficulty == 2:
                 self.load("ai_data/AI_medium.pkl")
@@ -325,8 +325,23 @@ class QL_AI:
 
 
     def load(self, name):
-        with open(name, 'rb') as file:
-            self.qtable = pickle.load(file)
+        import os
+        if not os.path.exists(name):
+            print(f"Le fichier {name} n'existe pas.")
+            return None
+
+    # Vérifier si le fichier est vide
+        if os.path.getsize(name) == 0:
+            print(f"Le fichier {name} est vide.")
+            return None
+        
+        try:
+            with open(name, 'rb') as file:
+                self.qtable = pickle.load(file)
+
+        except Exception as e:
+            print(f"Error in load: {e}")
+            return None
 
 
 
