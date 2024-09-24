@@ -61,7 +61,7 @@ class QL_AI:
                 self.load("/app/ai_data/AI_hard.pkl")
                 print("hard AI loaded")
             elif self.difficulty == 2:
-                self.load("ai_data/AI_medium.pkl")
+                self.load("/app/ai_data/AI_medium.pkl")
             elif self.difficulty == 1:
                 self.load("ai_data/AI_easy.pkl")
 
@@ -106,7 +106,16 @@ class QL_AI:
         res.append(round(state["ball"]["y"], 1))
         res.append(round(state["ball"]["rounded_angle"], 1))
         res.append(round(state["paddle2"]["y"], 1))
-        res.append(state["ball"]["next_collision"])
+
+        coll = []
+        coll.append(state["game"]["ai_data"][4][0])
+        coll.append(state["ball"]["next_collision"][1])
+
+        print(f"coll: {coll}")
+
+        res.append(coll)
+
+        print(f"after appending state: {res}")
 
         #nerfing AI accuracy for easy mode
         if self.difficulty == 1:
@@ -114,6 +123,8 @@ class QL_AI:
         res[4][1] = round(res[4][1] / self.win_height, 1)
 
         self.nextCollision = res.pop()
+
+        print(f"after pop, self.nextCollision: {self.nextCollision}")
     
         print(f"converted state: {res}")
 
@@ -144,6 +155,7 @@ class QL_AI:
     async def getAction(self, initial_state):
 
         print(f"in get action, state = {initial_state}")
+        print(f"difficulty: {self.difficulty}")
 
         self.state = self.convert_state(initial_state)
 
@@ -173,7 +185,7 @@ class QL_AI:
 
         print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
-            self.save_wrapper()
+            await self.save_wrapper()
             exit()
         self.counter += 1
         if self.counter == 100:
@@ -252,7 +264,9 @@ class QL_AI:
 
         relative_collision = self.determine_collision(nextCollision[1], previousPosition)
 
-        if difficulty == 1:
+        print(f"in reward next collision: {nextCollision}")
+
+        if self.difficulty == 1:
             nextCollision[1] += random.randint(-5, 5)
         if nextCollision[0] == 1:
             if action == up:
@@ -271,7 +285,7 @@ class QL_AI:
                 else:
                     result = minReward
         else:
-            if difficulty == 3:
+            if self.difficulty == 3:
                 if action == up and nextCollision[1] < previousPosition and previousPosition > 0.25:
                     result = maxReward
                 elif action == down and nextCollision[1] > previousPosition and previousPosition < 0.75:
@@ -281,6 +295,7 @@ class QL_AI:
                 else:
                     result = minReward
             else:
+                print(f"difficulty = {self.difficulty}")
                 if action == up or action == down:
                     result = minReward
                 else:
