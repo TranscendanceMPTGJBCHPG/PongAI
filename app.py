@@ -78,7 +78,7 @@ async def get_uri():
 
         with urllib.request.urlopen(req) as response:
             data = json.loads(response.read())
-            print(f"UID: {data['uid']}")
+            print(f"UID: {data}")
             return data['uid']
 
     except urllib.error.HTTPError as e:
