@@ -113,7 +113,7 @@ async def listen_for_uid():
                 uid = data['uid']
                 add_game_instance(uid)
                 # print(f"UID: {uid}")
-                await join_game(uid)
+                asyncio.create_task(join_game(uid))
             await asyncio.sleep(3)
         except urllib.error.HTTPError as e:
             print(e.reason)

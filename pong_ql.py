@@ -99,6 +99,8 @@ class QL_AI:
 
         if current_timestamp - self.last_state_timestamp < 1 and self.training == False:
             self.state[3] = round(self.raw_position, 1)
+            # if self.difficulty == 1:
+                # self.state[3] += round(random.uniform(-0.2, 0.2)
             return self.state
         self.last_state_timestamp = current_timestamp
 
@@ -119,7 +121,10 @@ class QL_AI:
 
         #nerfing AI accuracy for easy mode
         if self.difficulty == 1:
-            res[4][1] += random.randint(-10, 10)
+            res[0] += round(random.uniform(-0.3, 0.3),1)
+            res[1] += round(random.uniform(-0.3, 0.3),1)
+            res[2] += round(random.uniform(-0.3, 0.3),1)
+            # res[4][1] += random.randint(-20, 20)
         res[4][1] = round(res[4][1] / self.win_height, 1)
 
         self.nextCollision = res.pop()
@@ -266,8 +271,8 @@ class QL_AI:
 
         print(f"in reward next collision: {nextCollision}")
 
-        if self.difficulty == 1:
-            nextCollision[1] += random.randint(-5, 5)
+        # if self.difficulty == 1:
+        #     nextCollision[1] += random.randint(-5, 5)
         if nextCollision[0] == 1:
             if action == up:
                 if relative_collision == -1:
