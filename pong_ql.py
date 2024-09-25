@@ -93,7 +93,7 @@ class QL_AI:
         res = []
 
         current_timestamp = time.time()
-        print(f"current timestamp: {current_timestamp}, last timestamp: {self.last_state_timestamp}")
+        # print(f"current timestamp: {current_timestamp}, last timestamp: {self.last_state_timestamp}")
 
         self.raw_position = state["paddle2"]["y"]
 
@@ -113,11 +113,11 @@ class QL_AI:
         coll.append(state["game"]["ai_data"][4][0])
         coll.append(state["ball"]["next_collision"][1])
 
-        print(f"coll: {coll}")
+        # print(f"coll: {coll}")
 
         res.append(coll)
 
-        print(f"after appending state: {res}")
+        # print(f"after appending state: {res}")
 
         #nerfing AI accuracy for easy mode
         if self.difficulty == 1:
@@ -129,9 +129,9 @@ class QL_AI:
 
         self.nextCollision = res.pop()
 
-        print(f"after pop, self.nextCollision: {self.nextCollision}")
-    
-        print(f"converted state: {res}")
+        # print(f"after pop, self.nextCollision: {self.nextCollision}")
+        #
+        # print(f"converted state: {res}")
 
         if self.nextCollision[0] == 0:
             return self.ball_is_moving_away(res)
@@ -159,8 +159,8 @@ class QL_AI:
 
     async def getAction(self, initial_state):
 
-        print(f"in get action, state = {initial_state}")
-        print(f"difficulty: {self.difficulty}")
+        # print(f"in get action, state = {initial_state}")
+        # print(f"difficulty: {self.difficulty}")
 
         self.state = self.convert_state(initial_state)
 
@@ -188,7 +188,7 @@ class QL_AI:
         reward = self.getReward(self.nextCollision, action, self.state[3], self.difficulty)
         self.upadateQTable(repr(self.state), action, reward, repr(self.state))
 
-        print(f"qtable size: {len(self.qtable)}")
+        # print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
             await self.save_wrapper()
             exit()
@@ -269,7 +269,7 @@ class QL_AI:
 
         relative_collision = self.determine_collision(nextCollision[1], previousPosition)
 
-        print(f"in reward next collision: {nextCollision}")
+        # print(f"in reward next collision: {nextCollision}")
 
         # if self.difficulty == 1:
         #     nextCollision[1] += random.randint(-5, 5)
@@ -300,12 +300,12 @@ class QL_AI:
                 else:
                     result = minReward
             else:
-                print(f"difficulty = {self.difficulty}")
+                # print(f"difficulty = {self.difficulty}")
                 if action == up or action == down:
                     result = minReward
                 else:
                     result = maxReward
-        print(f"reward: {result}")
+        # print(f"reward: {result}")
         return result
 
 
