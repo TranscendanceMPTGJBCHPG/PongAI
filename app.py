@@ -23,7 +23,7 @@ async def listen_for_messages(websocket, game_uid):
     timestamp = 0
     if time.time() - timestamp > 0.1:
         timestamp = time.time()
-    print("in listen for messages")
+    # print("in listen for messages")
     try:
         if time.time() - timestamp < 0.1:
             timestamp = time.time()
@@ -50,7 +50,7 @@ async def listen_for_messages(websocket, game_uid):
 async def process_and_send_action(websocket, event, uid):
     action = await game_instances[uid]['ai'].getAction(event)
     await websocket.send(json.dumps({"type": "move", "direction": str(action), 'sender': 'AI'}))
-    print(f"Sent action: {action}")
+    # print(f"Sent action: {action}")
 
 
 async def handler(websocket):
@@ -78,7 +78,7 @@ async def get_uri():
 
         with urllib.request.urlopen(req) as response:
             data = json.loads(response.read())
-            print(f"UID: {data}")
+            # print(f"UID: {data}")
             return data['uid']
 
     except urllib.error.HTTPError as e:
