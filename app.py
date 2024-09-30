@@ -104,7 +104,7 @@ async def listen_for_uid():
         try:
             response = urllib.request.urlopen(url)
             data = json.loads(response.read())
-            print(data)
+            # print(data)
             #check if the data key is not error
             if 'error' in data:
                 # print(data['error'])
@@ -117,6 +117,7 @@ async def listen_for_uid():
             await asyncio.sleep(3)
         except urllib.error.HTTPError as e:
             print(e.reason)
+            time.sleep(3)
 
 
 def add_game_instance(uid):

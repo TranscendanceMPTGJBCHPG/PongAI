@@ -19,9 +19,9 @@ class QL_AI:
         self.epsilon_min = 0.01
 
         self.difficulty = difficulty
-        self.training = True
+        self.training = False
         self.saving = False
-        self.loading = False
+        self.loading = True
 
         if self.training == True:
             if self.loading == True:
