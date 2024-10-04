@@ -6,6 +6,7 @@ import asyncio
 import json
 import urllib.request
 import urllib.error
+import logging
 
 start_event = asyncio.Event()
 game_over = asyncio.Event()
@@ -77,6 +78,7 @@ async def get_uri():
         req = urllib.request.Request(url, data=data, headers=headers, method='GET')
 
         with urllib.request.urlopen(req) as response:
+            logging.info(f"Response: {response}")
             data = json.loads(response.read())
             # print(f"UID: {data}")
             return data['uid']
@@ -106,7 +108,7 @@ async def listen_for_uid():
             data = json.loads(response.read())
             # print(data)
             #check if the data key is not error
-            if 'error' in data:
+            if data['uid'] == 'error':
                 # print(data['error'])
                 pass
             else:
