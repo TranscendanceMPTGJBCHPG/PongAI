@@ -5,7 +5,9 @@ import time
 
 class QL_AI:
     
-    def __init__(self, width, height, paddle_width, paddle_height, difficulty) -> None:
+    def __init__(self, width, height, paddle_width, paddle_height, difficulty, side) -> None:
+
+        self.side = side
 
         self.raw_position = None
         self.win_width = width
@@ -19,6 +21,10 @@ class QL_AI:
         self.epsilon_min = 0.01
 
         self.difficulty = difficulty
+        if self.side == "left":
+            self.training = True
+            self.saving = True
+            self.loading = False
         self.training = False
         self.saving = False
         self.loading = True
@@ -41,7 +47,7 @@ class QL_AI:
 
         self.counter = 0
 
-        if self.loading == True:
+        if self.loading is True:
             self.init_ai_modes()
 
 
@@ -58,14 +64,20 @@ class QL_AI:
     def init_ai_modes(self):
         if self.loading == True:
             if self.difficulty == 3:
-                self.load("/app/ai_data/AI_hard.pkl")
-                print("hard AI loaded")
+                if self.side == "right":
+                    self.load("/app/ai_data/AI_hard.pkl")
+                else:
+                    self.load("/app/ai_data/AI_hard_p1.pkl")
             elif self.difficulty == 2:
-                self.load("/app/ai_data/AI_medium.pkl")
+                if self.side == "right":
+                    self.load("/app/ai_data/AI_medium.pkl")
+                else:
+                    self.load("/app/ai_data/AI_medium_p1.pkl")
             elif self.difficulty == 1:
-                self.load("ai_data/AI_easy.pkl")
-
-
+                if self.side == "right":
+                    self.load("/app/ai_data/AI_easy.pkl")
+                else:
+                    self.load("/app/ai_data/AI_easy_p1.pkl")
 
     def epsilon_greedy(self):
         if self.epsilon == self.epsilon_min:
@@ -206,7 +218,7 @@ class QL_AI:
     
 
     async def save_wrapper(self):
-        if self.saving == True:
+        if self.saving is True:
             if self.difficulty == 3:
                 await self.save("hard")
             elif self.difficulty == 2:
@@ -312,7 +324,10 @@ class QL_AI:
     async def save(self, name):
 
         import os
-        file_path = f"/app/ai_data/AI_{name}.pkl"
+        if self.side == "right":
+            file_path = f"/app/ai_data/AI_{name}.pkl"
+        else:
+            file_path = f"app/ai_data/AI_{name}_left.pkl"
 
         try:
             #save qtable in ai_data directory

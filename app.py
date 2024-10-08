@@ -12,9 +12,12 @@ start_event = asyncio.Event()
 game_over = asyncio.Event()
 
 ai_instances = {}
-ai_instances['easy'] = QL_AI(1500, 1000, 6, 166, 1)
-ai_instances['medium'] = QL_AI(1500, 1000, 6, 166, 2)
-ai_instances['hard'] = QL_AI(1500, 1000, 6, 166, 3)
+ai_instances['easy'] = QL_AI(1500, 1000, 6, 166, 1, "right")
+ai_instances['medium'] = QL_AI(1500, 1000, 6, 166, 2, "right")
+ai_instances['hard'] = QL_AI(1500, 1000, 6, 166, 3, "right")
+ai_instances['easy_p1'] = QL_AI(1500, 1000, 6, 166, 1, "left")
+ai_instances['medium_p1'] = QL_AI(1500, 1000, 6, 166, 2, "left")
+ai_instances['hard_p1'] = QL_AI(1500, 1000, 6, 166, 3, "left")
 
 game_instances = {}
 
@@ -126,11 +129,20 @@ def add_game_instance(uid):
     game_instances[uid] = {}
 
     if uid[0] == '1':
-        game_instances[uid]['ai'] = ai_instances['easy']
+        if uid[-1] == '1':
+            game_instances[uid]['ai'] = ai_instances['easy_p1']
+        else:
+            game_instances[uid]['ai'] = ai_instances['easy']
     elif uid[0] == '2':
-        game_instances[uid]['ai'] = ai_instances['medium']
+        if uid[-1] == '1':
+            game_instances[uid]['ai'] = ai_instances['medium_p1']
+        else:
+            game_instances[uid]['ai'] = ai_instances['medium']
     elif uid[0] == '3':
-        game_instances[uid]['ai'] = ai_instances['hard']
+        if uid[-1] == '1':
+            game_instances[uid]['ai'] = ai_instances['hard_p1']
+        else:
+            game_instances[uid]['ai'] = ai_instances['hard']
 
 async def main():
     await listen_for_uid()
