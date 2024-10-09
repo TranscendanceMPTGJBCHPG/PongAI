@@ -18,7 +18,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the application code
 COPY ./PongAI /app/
 
-RUN chmod +x /app/ai_data/AI_hard.pkl
-
 # Command to start the AI client
 CMD ["python", "app.py"]

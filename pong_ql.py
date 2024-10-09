@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import random
 import time
+import logging
 
 class QL_AI:
     
@@ -25,9 +26,10 @@ class QL_AI:
             self.training = True
             self.saving = True
             self.loading = False
-        self.training = False
-        self.saving = False
-        self.loading = True
+        else:
+            self.training = False
+            self.saving = False
+            self.loading = True
 
         if self.training == True:
             if self.loading == True:
@@ -67,17 +69,18 @@ class QL_AI:
                 if self.side == "right":
                     self.load("/app/ai_data/AI_hard.pkl")
                 else:
-                    self.load("/app/ai_data/AI_hard_p1.pkl")
+                    self.load("/app/ai_data/AI_hard_left.pkl")
+                    print("loaded hard AI Player 1")
             elif self.difficulty == 2:
                 if self.side == "right":
                     self.load("/app/ai_data/AI_medium.pkl")
                 else:
-                    self.load("/app/ai_data/AI_medium_p1.pkl")
+                    self.load("/app/ai_data/AI_medium_left.pkl")
             elif self.difficulty == 1:
                 if self.side == "right":
                     self.load("/app/ai_data/AI_easy.pkl")
                 else:
-                    self.load("/app/ai_data/AI_easy_p1.pkl")
+                    self.load("/app/ai_data/AI_easy_left.pkl")
 
     def epsilon_greedy(self):
         if self.epsilon == self.epsilon_min:
@@ -85,20 +88,6 @@ class QL_AI:
         self.epsilon -= self.epsilon_decay
         if self.epsilon < self.epsilon_min:
             self.epsilon = self.epsilon_min
-    
-
-    def getClosestState(self, state):
-        closest_state = None
-        previous_state = None
-        for s in self.qtable.keys():
-            if closest_state == None:
-                closest_state = s
-            else:
-                previous_state = closest_state
-                closest_state = s
-                if previous_state < state and closest_state > state:
-                    return closest_state
-        return closest_state
 
 
     def convert_state(self, state) -> list:
@@ -106,8 +95,10 @@ class QL_AI:
 
         current_timestamp = time.time()
         # print(f"current timestamp: {current_timestamp}, last timestamp: {self.last_state_timestamp}")
-
-        self.raw_position = state["paddle2"]["y"]
+        if self.side == "right":
+            self.raw_position = state["paddle2"]["y"]
+        else:
+            self.raw_position = state["paddle1"]["y"]
 
         if current_timestamp - self.last_state_timestamp < 1 and self.training == False:
             self.state[3] = round(self.raw_position, 1)
@@ -116,10 +107,16 @@ class QL_AI:
             return self.state
         self.last_state_timestamp = current_timestamp
 
+        print("second half of convert state")
+
         res.append(round(state["ball"]["x"], 1))
         res.append(round(state["ball"]["y"], 1))
         res.append(round(state["ball"]["rounded_angle"], 1))
-        res.append(round(state["paddle2"]["y"], 1))
+        if self.side == "right":
+            res.append(round(state["paddle2"]["y"], 1))
+        else:
+            res.append(round(state["paddle1"]["y"], 1))
+        # res.append(round(state["paddle2"]["y"], 1))
 
         coll = []
         coll.append(state["game"]["ai_data"][4][0])
@@ -129,7 +126,7 @@ class QL_AI:
 
         res.append(coll)
 
-        # print(f"after appending state: {res}")
+        print(f"after appending state: {res}")
 
         #nerfing AI accuracy for easy mode
         if self.difficulty == 1:
@@ -141,17 +138,24 @@ class QL_AI:
 
         self.nextCollision = res.pop()
 
-        # print(f"after pop, self.nextCollision: {self.nextCollision}")
+        print(f"after pop, self.nextCollision: {self.nextCollision}")
         #
         # print(f"converted state: {res}")
 
-        if self.nextCollision[0] == 0:
-            return self.ball_is_moving_away(res)
+        # if self.side == "right":
+        #     if self.nextCollision[0] == 0:
+        #         return self.ball_is_moving_away(res)
+        # else:
+        #     if self.nextCollision[0] != 0:
+        #         logging.info("Ai is left, ball is moving away")
+        #         return self.ball_is_moving_away(res)
     
         return res
     
 
     def ball_is_moving_away(self, state):
+        if self.state is None:
+            return state
         res = []
 
         res.append(state[1])
@@ -161,7 +165,10 @@ class QL_AI:
     
 
     def handle_pause(self, state):
-        paddle_position = state["paddle2"]["y"]
+        if self.side == "right":
+            paddle_position = state["paddle2"]["y"]
+        else:
+            paddle_position = state["paddle1"]["y"]
         if paddle_position > 0.52:
             return "up"
         elif paddle_position < 0.48:
@@ -176,7 +183,9 @@ class QL_AI:
 
         self.state = self.convert_state(initial_state)
 
-        paddle_pos_from_0_to_1 = self.state[3]
+        print(f"state: {self.state}")
+
+        # paddle_pos_from_0_to_1 = self.state[3]
 
         # print(f"paddle_pos_from_0_to_1: {paddle_pos_from_0_to_1}")
 
@@ -197,10 +206,15 @@ class QL_AI:
         else:
             action = np.argmax(self.qtable[stateRepr])
 
-        reward = self.getReward(self.nextCollision, action, self.state[3], self.difficulty)
+        if self.side == "right":
+            paddle_position = initial_state["paddle2"]["y"]
+        else:
+            paddle_position = initial_state["paddle1"]["y"]
+
+        reward = self.getReward(self.nextCollision, action, paddle_position, self.difficulty)
         self.upadateQTable(repr(self.state), action, reward, repr(self.state))
 
-        # print(f"qtable size: {len(self.qtable)}")
+        print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
             await self.save_wrapper()
             exit()
@@ -327,7 +341,7 @@ class QL_AI:
         if self.side == "right":
             file_path = f"/app/ai_data/AI_{name}.pkl"
         else:
-            file_path = f"app/ai_data/AI_{name}_left.pkl"
+            file_path = f"/app/ai_data/AI_{name}_left.pkl"
 
         try:
             #save qtable in ai_data directory
