@@ -22,14 +22,14 @@ class QL_AI:
         self.epsilon_min = 0.01
 
         self.difficulty = difficulty
-        if self.side == "left":
-            self.training = True
-            self.saving = True
-            self.loading = False
-        else:
-            self.training = False
-            self.saving = False
-            self.loading = True
+        # if self.side == "left":
+        #     self.training = True
+        #     self.saving = True
+        #     self.loading = False
+        # else:
+        self.training = False
+        self.saving = False
+        self.loading = True
 
         if self.training == True:
             if self.loading == True:
@@ -91,6 +91,8 @@ class QL_AI:
 
 
     def convert_state(self, state) -> list:
+
+        # print(f"state: {state}")
         res = []
 
         current_timestamp = time.time()
@@ -126,7 +128,7 @@ class QL_AI:
 
         res.append(coll)
 
-        print(f"after appending state: {res}")
+        # logging.info(f"after appending state: {res}")
 
         #nerfing AI accuracy for easy mode
         if self.difficulty == 1:
@@ -138,7 +140,7 @@ class QL_AI:
 
         self.nextCollision = res.pop()
 
-        print(f"after pop, self.nextCollision: {self.nextCollision}")
+        # print(f"after pop, self.nextCollision: {self.nextCollision}")
         #
         # print(f"converted state: {res}")
 
@@ -183,7 +185,10 @@ class QL_AI:
 
         self.state = self.convert_state(initial_state)
 
-        print(f"state: {self.state}")
+        if initial_state['type'] == "gameover":
+            return "Error"
+
+        # print(f"state: {self.state}")
 
         # paddle_pos_from_0_to_1 = self.state[3]
 
@@ -214,7 +219,7 @@ class QL_AI:
         reward = self.getReward(self.nextCollision, action, paddle_position, self.difficulty)
         self.upadateQTable(repr(self.state), action, reward, repr(self.state))
 
-        print(f"qtable size: {len(self.qtable)}")
+        # print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
             await self.save_wrapper()
             exit()

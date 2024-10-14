@@ -53,6 +53,11 @@ async def listen_for_messages(websocket, game_uid):
 
 async def process_and_send_action(websocket, event, uid):
     action = await game_instances[uid]['ai'].getAction(event)
+    if action == "Error":
+        del game_instances[uid]
+        #stop the
+        return
+
     await websocket.send(json.dumps({"type": "move", "direction": str(action), 'sender': 'AI'}))
     # print(f"Sent action: {action}")
 
