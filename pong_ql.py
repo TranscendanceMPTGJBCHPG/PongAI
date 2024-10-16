@@ -22,46 +22,38 @@ class QL_AI:
         self.epsilon_min = 0.01
 
         self.difficulty = difficulty
-        # if self.side == "left":
-        #     self.training = True
-        #     self.saving = True
-        #     self.loading = False
-        # else:
-        self.training = False
-        self.saving = False
-        self.loading = True
-
-        if self.training == True:
-            if self.loading == True:
-                self.epsilon = 0.5
-            else:
-                self.epsilon = 1 # 1 = uniquement exploration
-        else:
-            self.epsilon = 0
         self.qtable = {}
         self.rewards = []
         self.episodes = []
         self.average = []
-        self.name = "Test"
+        self.name = ""
         self.state = None
         self.last_state_timestamp = 0
         self.nextCollision = None
 
         self.counter = 0
 
+        self.loading = True
+
         if self.loading is True:
             self.init_ai_modes()
 
+        if len(self.qtable) < 5000:
+            self.training = True
+            self.saving = True
+        else:
+            self.training = False
+            self.saving = False
 
-    def fromDict(self, data):
-        self.win_width = data["width"]
-        self.win_height = data["height"]
-        self.paddle_height = data["paddle_height"]
-        self.paddle_width = data["paddle_width"]
-        self.difficulty = data["difficulty"]
-        self.loading = data["loading"]
-        self.init_ai_modes()
+        if self.training is True:
+            if self.loading is True:
+                self.epsilon = 0.5
+            else:
+                self.epsilon = 1 # 1 = uniquement exploration
+        else:
+            self.epsilon = 0
 
+        print(f"AI: {self.difficulty}, side: {self.side}, training: {self.training}, saving: {self.saving}, epsilon: {self.epsilon}, loading: {self.loading}, qtable size: {len(self.qtable)}")
 
     def init_ai_modes(self):
         if self.loading == True:
@@ -219,7 +211,7 @@ class QL_AI:
         reward = self.getReward(self.nextCollision, action, paddle_position, self.difficulty)
         self.upadateQTable(repr(self.state), action, reward, repr(self.state))
 
-        # print(f"qtable size: {len(self.qtable)}")
+        print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
             await self.save_wrapper()
             exit()
@@ -304,22 +296,25 @@ class QL_AI:
 
         # if self.difficulty == 1:
         #     nextCollision[1] += random.randint(-5, 5)
-        if nextCollision[0] == 1:
-            if action == up:
-                if relative_collision == -1:
-                    result = maxReward
-                else:
-                    result = minReward
-            elif action == down:
-                if relative_collision == 1:
-                    result = maxReward
-                else:
-                    result = minReward
-            elif action == still:
-                if relative_collision == 0:
-                    result = maxReward
-                else:
-                    result = minReward
+
+
+        #ball is moving towards the paddle
+        if nextCollision[0] == 1 and self.side == "right" or nextCollision[0] != 1  and self.side == "left":
+                if action == up:
+                    if relative_collision == -1:
+                        result = maxReward
+                    else:
+                        result = minReward
+                elif action == down:
+                    if relative_collision == 1:
+                        result = maxReward
+                    else:
+                        result = minReward
+                elif action == still:
+                    if relative_collision == 0:
+                        result = maxReward
+                    else:
+                        result = minReward
         else:
             if self.difficulty == 3:
                 if action == up and nextCollision[1] < previousPosition and previousPosition > 0.25:
