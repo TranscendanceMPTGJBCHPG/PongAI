@@ -105,10 +105,11 @@ async def join_game(uid):
         await listen_for_messages(websocket, uid)
 
 
-# Continuously fetching the route 'http://nginx:7777/game/new/?mode=AI'
+# Continuously fetching the route 'https://nginx:7777/game/new/?mode=AI'
 # On response, get the uid and join the game
 async def listen_for_uid():
     url = "http://nginx:7777/game/new/?mode=AI"
+
     while True:
         #fetch the url to get the uid
         try:
