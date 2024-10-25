@@ -7,6 +7,12 @@ import json
 import urllib.request
 import urllib.error
 import logging
+# import aiohttp
+import ssl
+
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 start_event = asyncio.Event()
 game_over = asyncio.Event()
@@ -68,67 +74,47 @@ async def handler(websocket):
     await asyncio.gather(listener_task)
 
 
-async def get_uri():
-    try:
-        url = 'http://nginx:7777/game/new/'
-        data = {
-            'type': 'PVE',
-            'sender': 'AI'
-        }
-        headers = {
-            'Content-Type': 'application/json'
-        }
-
-        # Convertir le corps de la requête en JSON
-        data = json.dumps(data).encode('utf-8')
-
-        # Créer l'objet Request
-        req = urllib.request.Request(url, data=data, headers=headers, method='GET')
-
-        with urllib.request.urlopen(req) as response:
-            logging.info(f"Response: {response}")
-            data = json.loads(response.read())
-            # print(f"UID: {data}")
-            return data['uid']
-
-    except urllib.error.HTTPError as e:
-        print(e.reason)
-
-
 # Réception d'UID de jeu via le serveur AI
 async def join_game(uid):
-    uri = f"ws://server:8000/ws/pong/{uid}/"
-    async with websockets.connect(uri) as websocket:
-        # print(f"IA connectée à la partie {uid}")
+    uri = f"wss://nginx:7777/ws/pong/{uid}/"
+    ssl_context = ssl.create_default_context()
+
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+
+    async with websockets.connect(uri, ssl=ssl_context) as websocket:
+        print(f"IA connectée à la partie {uid}")
         await websocket.send(json.dumps({"type": "greetings", "sender": "AI"}))
         # print("Message de salutation envoyé")
         await listen_for_messages(websocket, uid)
 
 
-# Continuously fetching the route 'https://nginx:7777/game/new/?mode=AI'
-# On response, get the uid and join the game
 async def listen_for_uid():
-    url = "http://nginx:7777/game/new/?mode=AI"
+    # logging.info("Starting listen_for_uid function")
+    url = "https://nginx:7777/game/join/?mode=AI"
+    # logging.info(f"Using URL: {url}")
 
     while True:
-        #fetch the url to get the uid
         try:
-            response = urllib.request.urlopen(url)
-            data = json.loads(response.read())
-            # print(data)
-            #check if the data key is not error
-            if data['uid'] == 'error':
-                # print(data['error'])
-                pass
-            else:
-                uid = data['uid']
-                add_game_instance(uid)
-                # print(f"UID: {uid}")
-                asyncio.create_task(join_game(uid))
-            await asyncio.sleep(3)
-        except urllib.error.HTTPError as e:
-            print(e.reason)
-            time.sleep(3)
+            # logging.info("Attempting to make request")
+            response = requests.get(url, verify=False)
+            # logging.info(f"Got response with status: {response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                logging.info(f"Received data: {data}")
+                if data.get('uid') != 'error':
+                    uid = data['uid']
+                    # logging.info(f"Got valid UID: {uid}")
+                    add_game_instance(uid)
+                    await asyncio.create_task(join_game(uid))
+
+        except requests.RequestException as e:
+            logging.error(f"Request error: {str(e)}")
+        except Exception as e:
+            logging.error(f"Unexpected error: {str(e)}")
+
+        await asyncio.sleep(3)
 
 
 def add_game_instance(uid):
@@ -150,9 +136,11 @@ def add_game_instance(uid):
         else:
             game_instances[uid]['ai'] = ai_instances['hard']
 
-async def main():
-    await listen_for_uid()
-
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    # logging.info("Starting main")
+    asyncio.run(listen_for_uid())
