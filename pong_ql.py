@@ -101,7 +101,7 @@ class QL_AI:
             return self.state
         self.last_state_timestamp = current_timestamp
 
-        print("second half of convert state")
+        # print("second half of convert state")
 
         res.append(round(state["ball"]["x"], 1))
         res.append(round(state["ball"]["y"], 1))
@@ -211,7 +211,7 @@ class QL_AI:
         reward = self.getReward(self.nextCollision, action, paddle_position, self.difficulty)
         self.upadateQTable(repr(self.state), action, reward, repr(self.state))
 
-        print(f"qtable size: {len(self.qtable)}")
+        # print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
             await self.save_wrapper()
             exit()
