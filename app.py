@@ -27,36 +27,6 @@ ai_instances['hard_p1'] = QL_AI(1500, 1000, 6, 166, 3, "left")
 
 game_instances = {}
 
-# async def listen_for_messages(websocket, game_uid):
-#     global ai_instances
-#
-#     timestamp = 0
-#     if time.time() - timestamp > 0.1:
-#         timestamp = time.time()
-#     # print("in listen for messages")
-#     try:
-#         if time.time() - timestamp < 0.1:
-#             timestamp = time.time()
-#         while True:
-#             try:
-#                 message = await websocket.recv()
-#                 if time.time() - timestamp < 0.1:
-#                     timestamp = time.time()
-#                 event = json.loads(message)
-#                 if event["type"] == "setup":
-#                     await websocket.send(json.dumps({'type': 'setup', 'sender': 'AI'}))
-#                 elif event["type"] == "None":
-#                     await process_and_send_action(websocket, event, game_uid)
-#                 await asyncio.sleep(0.001)
-#             except asyncio.TimeoutError:
-#                 print("No message received in the last 10 seconds")
-#                 continue
-#     except websockets.exceptions.ConnectionClosedError:
-#         print("Connection closed")
-#         await cleanup_ai_instance(game_uid)
-#         # asyncio.create_task(listen_for_uid())
-#         return
-
 async def listen_for_messages(websocket, game_uid):
     try:
         while True:
@@ -111,27 +81,6 @@ async def join_game(uid):
         logging.error(f"Error in join_game for {uid}: {e}")
         await cleanup_ai_instance(uid)
 
-
-# async def join_game(uid):
-#     uri = f"wss://nginx:7777/ws/pong/{uid}/"
-#     ssl_context = ssl.create_default_context()
-#
-#     ssl_context.check_hostname = False
-#     ssl_context.verify_mode = ssl.CERT_NONE
-#
-#     try:
-#         async with websockets.connect(uri, ssl=ssl_context) as websocket:
-#             print(f"IA connectée à la partie {uid}")
-#             await websocket.send(json.dumps({"type": "greetings", "sender": "AI"}))
-#             # print("Message de salutation envoyé")
-#             await listen_for_messages(websocket, uid)
-#     except websockets.exceptions.ConnectionClosedError as e:
-#         logging.error(f"Error in join_game: {e}")
-#
-#         # Après la déconnexion ou une erreur, on continue à écouter pour de nouvelles parties
-#         return True
-
-
 async def continuous_listen_for_uid():
     """Fonction qui cherche continuellement des nouvelles parties"""
     while True:
@@ -150,57 +99,6 @@ async def continuous_listen_for_uid():
             logging.error(f"Error in continuous_listen_for_uid: {e}")
 
         await asyncio.sleep(3)  # Attendre avant la prochaine vérification
-
-# async def listen_for_uid():
-#     while True:
-#         try:
-#             response = requests.get("https://nginx:7777/game/join/?mode=AI", verify=False)
-#
-#             if response.status_code == 200:
-#                 data = response.json()
-#                 logging.info(f"Received data: {data}")
-#                 if data.get('uid') != 'error':
-#                     uid = data['uid']
-#                     add_game_instance(uid)
-#                     # Attendre que join_game se termine avant de continuer la boucle
-#                     should_continue = await join_game(uid)
-#                     if should_continue:
-#                         logging.info("Recherche d'une nouvelle partie...")
-#                         continue
-#
-#         except requests.RequestException as e:
-#             logging.error(f"Request error: {str(e)}")
-#         except Exception as e:
-#             logging.error(f"Unexpected error: {str(e)}")
-#
-#         await asyncio.sleep(3)
-
-# async def listen_for_uid():
-#     # logging.info("Starting listen_for_uid function")
-#     url = "https://nginx:7777/game/join/?mode=AI"
-#     # logging.info(f"Using URL: {url}")
-#
-#     while True:
-#         try:
-#             # logging.info("Attempting to make request")
-#             response = requests.get(url, verify=False)
-#             # logging.info(f"Got response with status: {response.status_code}")
-#
-#             if response.status_code == 200:
-#                 data = response.json()
-#                 logging.info(f"Received data: {data}")
-#                 if data.get('uid') != 'error':
-#                     uid = data['uid']
-#                     # logging.info(f"Got valid UID: {uid}")
-#                     add_game_instance(uid)
-#                     await asyncio.create_task(join_game(uid))
-#
-#         except requests.RequestException as e:
-#             logging.error(f"Request error: {str(e)}")
-#         except Exception as e:
-#             logging.error(f"Unexpected error: {str(e)}")
-#
-#         await asyncio.sleep(3)
 
 
 def add_game_instance(uid):
