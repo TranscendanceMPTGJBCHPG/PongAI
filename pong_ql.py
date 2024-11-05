@@ -10,7 +10,7 @@ class QL_AI:
 
         self.side = side
 
-        self.raw_position = None
+        # self.raw_position = None
         self.win_width = width
         self.win_height = height
         self.paddle_height = paddle_height
@@ -29,7 +29,7 @@ class QL_AI:
         self.name = ""
         self.state = None
         self.last_state_timestamp = 0
-        self.nextCollision = None
+        # self.nextCollision = None
 
         self.counter = 0
 
@@ -127,22 +127,9 @@ class QL_AI:
             res[0] += round(random.uniform(-0.3, 0.3),1)
             res[1] += round(random.uniform(-0.3, 0.3),1)
             res[2] += round(random.uniform(-0.3, 0.3),1)
-            # res[4][1] += random.randint(-20, 20)
         res[4][1] = round(res[4][1] / self.win_height, 1)
 
         self.nextCollision = res.pop()
-
-        # print(f"after pop, self.nextCollision: {self.nextCollision}")
-        #
-        # print(f"converted state: {res}")
-
-        # if self.side == "right":
-        #     if self.nextCollision[0] == 0:
-        #         return self.ball_is_moving_away(res)
-        # else:
-        #     if self.nextCollision[0] != 0:
-        #         logging.info("Ai is left, ball is moving away")
-        #         return self.ball_is_moving_away(res)
     
         return res
     
@@ -170,26 +157,17 @@ class QL_AI:
         return "still"
 
 
-    async def getAction(self, initial_state):
+    async def getAction(self, state:list, raw_pos:int, next_collision:list, pause:bool) -> str :
 
-        # print(f"in get action, state = {initial_state}")
-        # print(f"difficulty: {self.difficulty}")
-
-        self.state = self.convert_state(initial_state)
-
-        if initial_state['type'] == "gameover":
-            return "Error"
-
-        # print(f"state: {self.state}")
-
-        # paddle_pos_from_0_to_1 = self.state[3]
-
-        # print(f"paddle_pos_from_0_to_1: {paddle_pos_from_0_to_1}")
-
-        if initial_state['game']['pause'] == True:
-            return self.handle_pause(initial_state)
+        # self.state = self.convert_state(state)
+        # if initial_state['type'] == "gameover":
+        #     return "Error"
+        #
+        # if initial_state['game']['pause'] == True:
+        if pause is True:
+            return self.handle_pause(state)
         #get last element of the list state
-        stateRepr = repr(self.state)
+        stateRepr = repr(state)
         # print(f"stateRepr: {stateRepr}")
 
         if stateRepr not in self.qtable:
@@ -203,13 +181,10 @@ class QL_AI:
         else:
             action = np.argmax(self.qtable[stateRepr])
 
-        if self.side == "right":
-            paddle_position = initial_state["paddle2"]["y"]
-        else:
-            paddle_position = initial_state["paddle1"]["y"]
 
-        reward = self.getReward(self.nextCollision, action, paddle_position, self.difficulty)
-        self.upadateQTable(repr(self.state), action, reward, repr(self.state))
+
+        reward = self.getReward(next_collision, action, raw_pos, self.difficulty)
+        self.upadateQTable(repr(state), action, reward, repr(state))
 
         # print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
