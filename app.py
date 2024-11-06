@@ -35,18 +35,20 @@ class GameAgent:
         self.side = global_ai.ai.side
 
 
+#TODO: put  the timestamp to 0 on reset after a goal
+#TODO: update paddle position from AI result, not game data
     async def get_action(self, state):
         logging.info(f"Received state: {state}")
         if state['type'] == 'gameover':
             return 'Error'
         self.pause = state['game']['pause']
 
-        if state['goal'] != 'None':
-            self.goal = True
-        else:
-            if self.goal is True:
-                self.goal = False
-                self.timestamp = 0
+        # if state['goal'] != 'None':
+        #     self.goal = True
+        # else:
+        #     if self.goal is True:
+        #         self.goal = False
+        #         self.timestamp = 0
 
         if self.side == "right":
             self.raw_position = state["paddle2"]["y"] * 1000

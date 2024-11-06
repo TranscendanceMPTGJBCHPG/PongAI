@@ -145,27 +145,20 @@ class QL_AI:
         return res
     
 
-    def handle_pause(self, state):
-        if self.side == "right":
-            paddle_position = state["paddle2"]["y"]
-        else:
-            paddle_position = state["paddle1"]["y"]
-        if paddle_position > 0.52:
+    def handle_pause(self, raw_pos):
+        relativ_pos = raw_pos / self.win_height
+        if relativ_pos > 0.52:
             return "up"
-        elif paddle_position < 0.48:
+        elif relativ_pos < 0.48:
             return "down"
         return "still"
 
 
     async def getAction(self, state:list, raw_pos:int, next_collision:list, pause:bool) -> str :
 
-        # self.state = self.convert_state(state)
-        # if initial_state['type'] == "gameover":
-        #     return "Error"
-        #
-        # if initial_state['game']['pause'] == True:
+        logging.info(f"in AI\n\nstate: {state}, raw_pos: {raw_pos}, next_collision: {next_collision}, pause: {pause}")
         if pause is True:
-            return self.handle_pause(state)
+            return self.handle_pause(raw_pos)
         #get last element of the list state
         stateRepr = repr(state)
         # print(f"stateRepr: {stateRepr}")
