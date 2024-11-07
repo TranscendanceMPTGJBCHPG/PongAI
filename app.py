@@ -8,6 +8,7 @@ import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import threading
 from pong_ql import QL_AI
+import random
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -23,6 +24,9 @@ class GlobalAI:
 
 
 class GameAgent:
+
+    training = False
+
     timestamp = 0
     game_state = None
     raw_position = None
@@ -30,15 +34,17 @@ class GameAgent:
     next_collision = None
     pause = False
     goal = False
+    difficulty = None
     def __init__(self, global_ai):
         self.global_ai = global_ai
         self.side = global_ai.ai.side
+        self.difficulty = global_ai.ai.difficulty
 
 
 #TODO: put  the timestamp to 0 on reset after a goal
 #TODO: update paddle position from AI result, not game data
     async def get_action(self, state):
-        logging.info(f"Received state: {state}")
+        # logging.info(f"Received state: {state}")
         if state['type'] == 'gameover':
             return 'Error'
         self.pause = state['game']['pause']
@@ -55,10 +61,10 @@ class GameAgent:
         else:
             self.raw_position = state["paddle1"]["y"] * 1000
 
-        if time.time() - self.timestamp >= 1:
+        if time.time() - self.timestamp >= 1 or self.training is True:
             self.game_state = await self.convert_state(state)
             self.timestamp = time.time()
-        logging.info(f"Game state: {self.game_state}, raw position: {self.raw_position}, next collision: {self.next_collision}, pause: {self.pause}")
+        # logging.info(f"Game state: {self.game_state}, raw position: {self.raw_position}, next collision: {self.next_collision}, pause: {self.pause}")
         result = await self.global_ai.get_action(self.game_state, self.raw_position,
                                                   self.next_collision, self.pause)
         # if result == 'up':
@@ -67,6 +73,10 @@ class GameAgent:
         #     self.raw_position += 3
 
         logging.info(f"AI action: {result}")
+
+        if self.difficulty == 1 and result != 'still':
+            if random.choice([0, 1, 2]) == 1:
+                return 'still'
 
         return result
 
@@ -96,6 +106,10 @@ class GameAgent:
         # res[4][1] = round(res[4][1] / self.win_height, 1)
 
         self.next_collision = res.pop()
+        if self.difficulty == 1 and self.training is False:
+            self.next_collision[1] += random.uniform(-50, 50)
+            
+        logging.info(f"Converted state: {res}")
         return res
 
 class AIService:
@@ -114,6 +128,7 @@ class AIService:
 
     def add_game_instance(self, uid: str):
         difficulty = self._get_difficulty_from_uid(uid)
+        logging.info(f"Adding game instance for {uid} with difficulty {difficulty}")
         global_ai = self.global_models[difficulty]
         self.game_instances[uid] = {'ai': GameAgent(global_ai)}
 

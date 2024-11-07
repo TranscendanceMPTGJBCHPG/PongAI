@@ -34,24 +34,17 @@ class QL_AI:
         self.counter = 0
 
         self.loading = True
+        self.training = False
+        self.saving = False
+        self.epsilon = self.epsilon_min
+
+        # self.loading = False
+        # self.training = True
+        # self.saving = True
+        # self.epsilon = 1
 
         if self.loading is True:
             self.init_ai_modes()
-
-        if len(self.qtable) < 5000:
-            self.training = True
-            self.saving = True
-        else:
-            self.training = False
-            self.saving = False
-
-        if self.training is True:
-            if self.loading is True:
-                self.epsilon = 0.5
-            else:
-                self.epsilon = 1 # 1 = uniquement exploration
-        else:
-            self.epsilon = 0
 
         print(f"AI: {self.difficulty}, side: {self.side}, training: {self.training}, saving: {self.saving}, epsilon: {self.epsilon}, loading: {self.loading}, qtable size: {len(self.qtable)}")
 
@@ -80,58 +73,6 @@ class QL_AI:
         self.epsilon -= self.epsilon_decay
         if self.epsilon < self.epsilon_min:
             self.epsilon = self.epsilon_min
-
-
-    def convert_state(self, state) -> list:
-
-        # print(f"state: {state}")
-        res = []
-
-        current_timestamp = time.time()
-        # print(f"current timestamp: {current_timestamp}, last timestamp: {self.last_state_timestamp}")
-        if self.side == "right":
-            self.raw_position = state["paddle2"]["y"]
-        else:
-            self.raw_position = state["paddle1"]["y"]
-
-        if current_timestamp - self.last_state_timestamp < 1 and self.training == False:
-            self.state[3] = round(self.raw_position, 1)
-            # if self.difficulty == 1:
-                # self.state[3] += round(random.uniform(-0.2, 0.2)
-            return self.state
-        self.last_state_timestamp = current_timestamp
-
-        # print("second half of convert state")
-
-        res.append(round(state["ball"]["x"], 1))
-        res.append(round(state["ball"]["y"], 1))
-        res.append(round(state["ball"]["rounded_angle"], 1))
-        if self.side == "right":
-            res.append(round(state["paddle2"]["y"], 1))
-        else:
-            res.append(round(state["paddle1"]["y"], 1))
-        # res.append(round(state["paddle2"]["y"], 1))
-
-        coll = []
-        coll.append(state["game"]["ai_data"][4][0])
-        coll.append(state["ball"]["next_collision"][1])
-
-        # print(f"coll: {coll}")
-
-        res.append(coll)
-
-        # logging.info(f"after appending state: {res}")
-
-        #nerfing AI accuracy for easy mode
-        if self.difficulty == 1:
-            res[0] += round(random.uniform(-0.3, 0.3),1)
-            res[1] += round(random.uniform(-0.3, 0.3),1)
-            res[2] += round(random.uniform(-0.3, 0.3),1)
-        res[4][1] = round(res[4][1] / self.win_height, 1)
-
-        self.nextCollision = res.pop()
-    
-        return res
     
 
     def ball_is_moving_away(self, state):
@@ -156,7 +97,7 @@ class QL_AI:
 
     async def getAction(self, state:list, raw_pos:int, next_collision:list, pause:bool) -> str :
 
-        logging.info(f"in AI\n\nstate: {state}, raw_pos: {raw_pos}, next_collision: {next_collision}, pause: {pause}")
+        # logging.info(f"in AI\n\nstate: {state}, raw_pos: {raw_pos}, next_collision: {next_collision}, pause: {pause}")
         if pause is True:
             return self.handle_pause(raw_pos)
         #get last element of the list state
@@ -164,6 +105,7 @@ class QL_AI:
         # print(f"stateRepr: {stateRepr}")
 
         if stateRepr not in self.qtable:
+            print(f"new STATE\n")
             self.qtable[stateRepr] = np.zeros(3)
         self.epsilon_greedy()
         if self.training == True:
@@ -179,7 +121,7 @@ class QL_AI:
         reward = self.getReward(next_collision, action, raw_pos, self.difficulty)
         self.upadateQTable(repr(state), action, reward, repr(state))
 
-        # print(f"qtable size: {len(self.qtable)}")
+        print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
             await self.save_wrapper()
             exit()
@@ -227,22 +169,27 @@ class QL_AI:
 
     def determine_collision(self, next_collision, paddle_position):
 
-        security_margin = 5 / self.win_height
-        margin_from_middle = self.paddle_height / 2 / self.win_height - security_margin
+        # logging.info(f"in determine collision, next_collision: {next_collision}, paddle_position: {paddle_position}")
+
+        security_margin = 5
+        # margin_from_middle = self.paddle_height / 2 / self.win_height - security_margin
 
         # print(f"security margin: {security_margin}, margin from middle: {margin_from_middle}")
 
-        top_paddle = round(paddle_position - security_margin, 2)
-        bottom_paddle = round(paddle_position + security_margin, 2)
+        top_paddle = paddle_position - self.paddle_height / 2 + security_margin
+        bottom_paddle = paddle_position + self.paddle_height / 2 - security_margin
 
-        # print(f"got in determine collision, next_collision: {next_collision}, paddle_position: {paddle_position}")
-        # print(f"bottom_paddle: {bottom_paddle}, top_paddle: {top_paddle}")
+        print(f"got in determine collision, next_collision: {next_collision}, paddle_position: {paddle_position}, paddle_height: {self.paddle_height}")
+        print(f"bottom_paddle: {bottom_paddle}, top_paddle: {top_paddle}")
+
         if next_collision > bottom_paddle:
-            # print("collision will be below paddle")
+            logging.info("collision will be below paddle")
             return 1
         elif next_collision < top_paddle:
-            # print("collision will be above paddle")
+            logging.info("collision will be above paddle")
             return -1
+        else:
+            logging.info("collision will be on paddle")
         return 0
 
 
@@ -256,7 +203,7 @@ class QL_AI:
         minReward = -10
         result:int = 0
 
-        # print(f"nextCollision: {nextCollision}, action: {action}, previousPosition: {previousPosition}, difficulty: {difficulty}")
+        print(f"nextCollision: {nextCollision}, action: {action}, previousPosition: {previousPosition}, difficulty: {difficulty}")
 
         relative_collision = self.determine_collision(nextCollision[1], previousPosition)
 
@@ -285,11 +232,11 @@ class QL_AI:
                         result = minReward
         else:
             if self.difficulty == 3:
-                if action == up and nextCollision[1] < previousPosition and previousPosition > 0.25:
+                if action == up and nextCollision[1] < previousPosition and previousPosition > 0.25 * self.win_height:
                     result = maxReward
-                elif action == down and nextCollision[1] > previousPosition and previousPosition < 0.75:
+                elif action == down and nextCollision[1] > previousPosition and previousPosition < 0.75 * self.win_height:
                     result = maxReward
-                elif action == still and abs(nextCollision[1] - previousPosition) < self.paddle_height / 1000 and previousPosition > self.win_height // 4 // 1000 and previousPosition < 0.75:
+                elif action == still and relative_collision == 0:
                     result = maxReward
                 else:
                     result = minReward
@@ -299,7 +246,7 @@ class QL_AI:
                     result = minReward
                 else:
                     result = maxReward
-        # print(f"reward: {result}")
+        print(f"reward: {result}")
         return result
 
 
