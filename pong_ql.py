@@ -33,15 +33,15 @@ class QL_AI:
 
         self.counter = 0
 
-        self.loading = True
-        self.training = False
-        self.saving = False
-        self.epsilon = self.epsilon_min
+        # self.loading = True
+        # self.training = False
+        # self.saving = False
+        # self.epsilon = self.epsilon_min
 
-        # self.loading = False
-        # self.training = True
-        # self.saving = True
-        # self.epsilon = 1
+        self.loading = False
+        self.training = True
+        self.saving = True
+        self.epsilon = 1
 
         if self.loading is True:
             self.init_ai_modes()
@@ -232,14 +232,32 @@ class QL_AI:
                         result = minReward
         else:
             if self.difficulty == 3:
-                if action == up and nextCollision[1] < previousPosition and previousPosition > 0.25 * self.win_height:
-                    result = maxReward
-                elif action == down and nextCollision[1] > previousPosition and previousPosition < 0.75 * self.win_height:
-                    result = maxReward
-                elif action == still and relative_collision == 0:
-                    result = maxReward
-                else:
-                    result = minReward
+
+                if action == up:
+                    if relative_collision == -1 and previousPosition > 0.33 * self.win_height:
+                        result = maxReward
+                    else:
+                        result = minReward
+                elif action == down:
+                    if relative_collision == 1 and previousPosition < 0.66 * self.win_height:
+                        result = maxReward
+                    else:
+                        result = minReward
+                elif action == still:
+                    if relative_collision == 0 and previousPosition > 0.33 * self.win_height and previousPosition < 0.66 * self.win_height:
+                        result = maxReward
+                    else:
+                        result = minReward
+
+
+                # if relative_collision == -1:
+                #     result = maxReward
+                # elif action == down and nextCollision[1] > previousPosition and previousPosition < 0.75 * self.win_height:
+                #     result = maxReward
+                # elif action == still and relative_collision == 0:
+                #     result = maxReward
+                # else:
+                #     result = minReward
             else:
                 # print(f"difficulty = {self.difficulty}")
                 if action == up or action == down:

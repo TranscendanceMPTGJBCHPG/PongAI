@@ -25,7 +25,8 @@ class GlobalAI:
 
 class GameAgent:
 
-    training = False
+    training = True
+    # training = False
 
     timestamp = 0
     game_state = None
@@ -49,18 +50,12 @@ class GameAgent:
             return 'Error'
         self.pause = state['game']['pause']
 
-        # if state['goal'] != 'None':
-        #     self.goal = True
-        # else:
-        #     if self.goal is True:
-        #         self.goal = False
-        #         self.timestamp = 0
-
         if self.side == "right":
             self.raw_position = state["paddle2"]["y"] * 1000
         else:
             self.raw_position = state["paddle1"]["y"] * 1000
-
+        if state["resumeOnGoal"] is True:
+            self.timestamp = 0
         if time.time() - self.timestamp >= 1 or self.training is True:
             self.game_state = await self.convert_state(state)
             self.timestamp = time.time()
@@ -82,16 +77,26 @@ class GameAgent:
 
     async def convert_state(self, state) -> list:
 
+        logging.info(f"Converting state: {state}")
+
         res = []
 
 
-        res.append(round(state["ball"]["x"], 1))
-        res.append(round(state["ball"]["y"], 1))
-        res.append(round(state["ball"]["rounded_angle"], 1))
+        # res.append(round(state["ball"]["x"], 1))
+        # res.append(round(state["ball"]["y"], 1))
+        # res.append(round(state["ball"]["rounded_angle"], 1))
+        # if self.side == "right":
+        #     res.append(round(state["paddle2"]["y"], 1))
+        # else:
+        #     res.append(round(state["paddle1"]["y"], 1))
+
+        res.append(await self.round_value(state["ball"]["x"]))
+        res.append(await self.round_value(state["ball"]["y"]))
+        res.append(await self.round_value(state["ball"]["rounded_angle"]))
         if self.side == "right":
-            res.append(round(state["paddle2"]["y"], 1))
+            res.append(await self.round_value(state["paddle2"]["y"]))
         else:
-            res.append(round(state["paddle1"]["y"], 1))
+            res.append(await self.round_value(state["paddle1"]["y"]))
 
         coll = []
         coll.append(state["game"]["ai_data"][4][0])
@@ -111,6 +116,10 @@ class GameAgent:
             
         logging.info(f"Converted state: {res}")
         return res
+
+    async def round_value(self, nb):
+        #round nb to 0.05
+        return round(nb * 20) / 20
 
 class AIService:
     def __init__(self):
