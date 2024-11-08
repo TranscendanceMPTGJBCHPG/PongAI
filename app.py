@@ -37,6 +37,10 @@ class GameAgent:
     pause = False
     goal = False
     difficulty = None
+
+    min_position = 0
+    max_position = 1000
+
     def __init__(self, global_ai):
         self.global_ai = global_ai
         self.side = global_ai.ai.side
@@ -46,15 +50,15 @@ class GameAgent:
 #TODO: put  the timestamp to 0 on reset after a goal
 #TODO: update paddle position from AI result, not game data
     async def get_action(self, state):
-        # logging.info(f"Received state: {state}")
+        logging.info(f"Received state: {state}")
         if state['type'] == 'gameover':
             return 'Error'
         self.pause = state['game']['pause']
-
-        if self.side == "right":
-            self.raw_position = state["paddle2"]["y"] * 1000
-        else:
-            self.raw_position = state["paddle1"]["y"] * 1000
+        if self.raw_position is None:
+            if self.side == "right":
+                self.raw_position = state["paddle2"]["y"] * 1000
+            else:
+                self.raw_position = state["paddle1"]["y"] * 1000
         if state["resumeOnGoal"] is True:
             self.update_timestamp = 0
         if time.time() - self.update_timestamp >= 1 or self.training is True:
@@ -63,12 +67,15 @@ class GameAgent:
         # logging.info(f"Game state: {self.game_state}, raw position: {self.raw_position}, next collision: {self.next_collision}, pause: {self.pause}")
         result = await self.global_ai.get_action(self.game_state, self.raw_position,
                                                   self.next_collision, self.pause)
-        # if result == 'up':
-        #     self.raw_position -= 3
-        # elif result == 'down':
-        #     self.raw_position += 3
-
-        # logging.info(f"AI action: {result}")
+        
+        if result == 'up':
+            self.raw_position -= 5
+            if self.raw_position < self.min_position:
+                self.raw_position = self.min_position
+        elif result == 'down':
+            self.raw_position += 5
+            if self.raw_position > self.max_position:
+                self.raw_position = self.max_position
 
         if self.difficulty == 1 and result != 'still':
             if random.choice([0, 1, 2]) == 1:
