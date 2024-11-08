@@ -33,15 +33,15 @@ class QL_AI:
 
         self.counter = 0
 
-        # self.loading = True
-        # self.training = False
-        # self.saving = False
-        # self.epsilon = self.epsilon_min
+        self.loading = True
+        self.training = False
+        self.saving = False
+        self.epsilon = self.epsilon_min
 
-        self.loading = False
-        self.training = True
-        self.saving = True
-        self.epsilon = 1
+        # self.loading = False
+        # self.training = True
+        # self.saving = True
+        # self.epsilon = 1
 
         if self.loading is True:
             self.init_ai_modes()
@@ -105,7 +105,7 @@ class QL_AI:
         # print(f"stateRepr: {stateRepr}")
 
         if stateRepr not in self.qtable:
-            print(f"new STATE\n")
+            # print(f"new STATE\n")
             self.qtable[stateRepr] = np.zeros(3)
         self.epsilon_greedy()
         if self.training == True:
@@ -121,7 +121,7 @@ class QL_AI:
         reward = self.getReward(next_collision, action, raw_pos, self.difficulty)
         self.upadateQTable(repr(state), action, reward, repr(state))
 
-        print(f"qtable size: {len(self.qtable)}")
+        # print(f"qtable size: {len(self.qtable)}")
         if (len(self.qtable) >= 8000) and self.saving == True:
             await self.save_wrapper()
             exit()
@@ -179,18 +179,18 @@ class QL_AI:
         top_paddle = paddle_position - self.paddle_height / 2 + security_margin
         bottom_paddle = paddle_position + self.paddle_height / 2 - security_margin
 
-        print(f"got in determine collision, next_collision: {next_collision}, paddle_position: {paddle_position}, paddle_height: {self.paddle_height}")
-        print(f"bottom_paddle: {bottom_paddle}, top_paddle: {top_paddle}")
+        # print(f"got in determine collision, next_collision: {next_collision}, paddle_position: {paddle_position}, paddle_height: {self.paddle_height}")
+        # print(f"bottom_paddle: {bottom_paddle}, top_paddle: {top_paddle}")
 
         if next_collision > bottom_paddle:
-            logging.info("collision will be below paddle")
+            # logging.info("collision will be below paddle")
             return 1
         elif next_collision < top_paddle:
-            logging.info("collision will be above paddle")
+            # logging.info("collision will be above paddle")
             return -1
         else:
-            logging.info("collision will be on paddle")
-        return 0
+            # logging.info("collision will be on paddle")
+            return 0
 
 
     def getReward(self, nextCollision, action, previousPosition, difficulty):
@@ -203,7 +203,7 @@ class QL_AI:
         minReward = -10
         result:int = 0
 
-        print(f"nextCollision: {nextCollision}, action: {action}, previousPosition: {previousPosition}, difficulty: {difficulty}")
+        # print(f"nextCollision: {nextCollision}, action: {action}, previousPosition: {previousPosition}, difficulty: {difficulty}")
 
         relative_collision = self.determine_collision(nextCollision[1], previousPosition)
 
@@ -264,7 +264,7 @@ class QL_AI:
                     result = minReward
                 else:
                     result = maxReward
-        print(f"reward: {result}")
+        # print(f"reward: {result}")
         return result
 
 

@@ -25,10 +25,11 @@ class GlobalAI:
 
 class GameAgent:
 
-    training = True
-    # training = False
+    # training = True
+    training = False
 
-    timestamp = 0
+    update_timestamp = 0
+    limit_timestamp = 0
     game_state = None
     raw_position = None
     side = None
@@ -55,10 +56,10 @@ class GameAgent:
         else:
             self.raw_position = state["paddle1"]["y"] * 1000
         if state["resumeOnGoal"] is True:
-            self.timestamp = 0
-        if time.time() - self.timestamp >= 1 or self.training is True:
+            self.update_timestamp = 0
+        if time.time() - self.update_timestamp >= 1 or self.training is True:
             self.game_state = await self.convert_state(state)
-            self.timestamp = time.time()
+            self.update_timestamp = time.time()
         # logging.info(f"Game state: {self.game_state}, raw position: {self.raw_position}, next collision: {self.next_collision}, pause: {self.pause}")
         result = await self.global_ai.get_action(self.game_state, self.raw_position,
                                                   self.next_collision, self.pause)
@@ -67,7 +68,7 @@ class GameAgent:
         # elif result == 'down':
         #     self.raw_position += 3
 
-        logging.info(f"AI action: {result}")
+        # logging.info(f"AI action: {result}")
 
         if self.difficulty == 1 and result != 'still':
             if random.choice([0, 1, 2]) == 1:
@@ -77,7 +78,7 @@ class GameAgent:
 
     async def convert_state(self, state) -> list:
 
-        logging.info(f"Converting state: {state}")
+        # logging.info(f"Converting state: {state}")
 
         res = []
 
@@ -114,7 +115,7 @@ class GameAgent:
         if self.difficulty == 1 and self.training is False:
             self.next_collision[1] += random.uniform(-50, 50)
             
-        logging.info(f"Converted state: {res}")
+        # logging.info(f"Converted state: {res}")
         return res
 
     async def round_value(self, nb):
@@ -137,7 +138,7 @@ class AIService:
 
     def add_game_instance(self, uid: str):
         difficulty = self._get_difficulty_from_uid(uid)
-        logging.info(f"Adding game instance for {uid} with difficulty {difficulty}")
+        # logging.info(f"Adding game instance for {uid} with difficulty {difficulty}")
         global_ai = self.global_models[difficulty]
         self.game_instances[uid] = {'ai': GameAgent(global_ai)}
 
@@ -219,7 +220,7 @@ class AIService:
                 )
                 if response.status_code == 200:
                     data = response.json()
-                    logging.info(f"Checking for new game: {data}")
+                    # logging.info(f"Checking for new game: {data}")
                     if data.get('uid') != 'error':
                         uid = data['uid']
                         if uid not in self.game_instances:
