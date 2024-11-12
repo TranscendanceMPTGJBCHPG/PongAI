@@ -37,20 +37,24 @@ class GameAgent:
     pause = False
     goal = False
     difficulty = None
+    min_position = None
+    max_position = None
 
-    min_position = 0
-    max_position = 1000
 
     def __init__(self, global_ai):
         self.global_ai = global_ai
         self.side = global_ai.ai.side
         self.difficulty = global_ai.ai.difficulty
 
+        self.min_position = 83
+        self.max_position = 1000 - self.min_position
 
 #TODO: put  the timestamp to 0 on reset after a goal
 #TODO: update paddle position from AI result, not game data
     async def get_action(self, state):
-        logging.info(f"Received state: {state}")
+        if time.time() - self.limit_timestamp < 1/60:
+            return 'wait'
+        # logging.info(f"Received state: {state}")
         if state['type'] == 'gameover':
             return 'Error'
         self.pause = state['game']['pause']
@@ -59,29 +63,66 @@ class GameAgent:
                 self.raw_position = state["paddle2"]["y"] * 1000
             else:
                 self.raw_position = state["paddle1"]["y"] * 1000
+            logging.info(f"Initial position: {self.raw_position}")
+        # else:
+        #     if self.side == "right":
+        #         if self.raw_position != state["paddle2"]["y"] * 1000:
+        #             logging.info(f"In loop : Error in Raw position: {self.raw_position}, state position: {state['paddle2']['y'] * 1000}\n\n")
+        #             # exit(0)
+        #     else:
+        #         if self.raw_position != state["paddle1"]["y"] * 1000:
+        #             logging.info(f"In loop : Error in Raw position: {self.raw_position}, state position: {state['paddle1']['y'] * 1000}\n\n")
+        #             # exit(0)
         if state["resumeOnGoal"] is True:
             self.update_timestamp = 0
         if time.time() - self.update_timestamp >= 1 or self.training is True:
+            self.raw_position = state["paddle2"]["y"] * 1000
             self.game_state = await self.convert_state(state)
             self.update_timestamp = time.time()
         # logging.info(f"Game state: {self.game_state}, raw position: {self.raw_position}, next collision: {self.next_collision}, pause: {self.pause}")
         result = await self.global_ai.get_action(self.game_state, self.raw_position,
                                                   self.next_collision, self.pause)
         
-        if result == 'up':
-            self.raw_position -= 5
-            if self.raw_position < self.min_position:
-                self.raw_position = self.min_position
-        elif result == 'down':
-            self.raw_position += 5
-            if self.raw_position > self.max_position:
-                self.raw_position = self.max_position
-
+        # if result != 'still':
+        #     logging.info(f"AI result: {result}\n\n\n")
+        
         if self.difficulty == 1 and result != 'still':
             if random.choice([0, 1, 2]) == 1:
-                return 'still'
+                result = 'still'
+            
+        if result == 'up':
+            # for _ in range(10):
+            for _ in range(5):
+                self.raw_position = self.raw_position - 3
+                if self.raw_position < self.min_position:
+                    self.raw_position = self.min_position
+        elif result == 'down':
+            # for _ in range(10):
+            for _ in range(5):
+                self.raw_position = self.raw_position + 3
+                if self.raw_position > self.max_position:
+                    self.raw_position = self.max_position
 
+        # await self.compare_positions(state, self.raw_position, self.side, result)
         return result
+    
+
+    # async def compare_positions(self, state, raw_position, side, result):
+        if result == 'up':
+            if side == "right":
+                new_pos = (state["paddle2"]["y"] * 1000) + (5 * (self.global_ai.ai.win_height / 333))
+                if raw_position != new_pos:
+                    logging.info(f"compare_positions: Error in position: {raw_position}, new_pos: {new_pos}\n\n")
+            else:
+                if round(raw_position) != round(state["paddle1"]["y"] * 1000):
+                    logging.info(f"Error in position: {raw_position}, state position: {state['paddle1']['y'] * 1000}\n\n")
+        elif result == 'down':
+            if side == "right":
+                if round(raw_position) != round(state["paddle2"]["y"] * 1000):
+                    logging.info(f"Error in position: {raw_position}, state position: {state['paddle2']['y'] * 1000}\n\n")
+            else:
+                if round(raw_position) != round(state["paddle1"]["y"] * 1000):
+                    logging.info(f"Error in position: {raw_position}, state position: {state['paddle1']['y'] * 1000}\n\n")
 
     async def convert_state(self, state) -> list:
 
@@ -163,6 +204,10 @@ class AIService:
                 action = await self.game_instances[uid]['ai'].get_action(event)
                 if action == "Error":
                     await self.cleanup_ai_instance(uid)
+                    return
+                
+                elif action == 'wait':
+                    logging.info(f"Waiting for action for game {uid}\n\n\n")
                     return
 
                 await websocket.send(json.dumps({
