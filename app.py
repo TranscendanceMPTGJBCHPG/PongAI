@@ -237,6 +237,10 @@ class AIService:
                         }))
                     elif event["type"] == "None":
                         await self.process_and_send_action(websocket, event, game_uid)
+                    elif event["type"] == "gameover":
+                        logging.info(f"AI: Game over for game {game_uid}")
+                        await self.cleanup_ai_instance(game_uid)
+                        return
                     await asyncio.sleep(0.001)
                 except asyncio.TimeoutError:
                     continue
