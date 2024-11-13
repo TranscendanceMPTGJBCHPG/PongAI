@@ -49,8 +49,6 @@ class GameAgent:
         self.min_position = 83
         self.max_position = 1000 - self.min_position
 
-#TODO: put  the timestamp to 0 on reset after a goal
-#TODO: update paddle position from AI result, not game data
     async def get_action(self, state):
         if time.time() - self.limit_timestamp < 1/60:
             return 'wait'
@@ -64,27 +62,16 @@ class GameAgent:
             else:
                 self.raw_position = state["paddle1"]["y"] * 1000
             logging.info(f"Initial position: {self.raw_position}")
-        # else:
-        #     if self.side == "right":
-        #         if self.raw_position != state["paddle2"]["y"] * 1000:
-        #             logging.info(f"In loop : Error in Raw position: {self.raw_position}, state position: {state['paddle2']['y'] * 1000}\n\n")
-        #             # exit(0)
-        #     else:
-        #         if self.raw_position != state["paddle1"]["y"] * 1000:
-        #             logging.info(f"In loop : Error in Raw position: {self.raw_position}, state position: {state['paddle1']['y'] * 1000}\n\n")
-        #             # exit(0)
+       
         if state["resumeOnGoal"] is True:
             self.update_timestamp = 0
         if time.time() - self.update_timestamp >= 1 or self.training is True:
             self.raw_position = state["paddle2"]["y"] * 1000
             self.game_state = await self.convert_state(state)
             self.update_timestamp = time.time()
-        # logging.info(f"Game state: {self.game_state}, raw position: {self.raw_position}, next collision: {self.next_collision}, pause: {self.pause}")
+            
         result = await self.global_ai.get_action(self.game_state, self.raw_position,
                                                   self.next_collision, self.pause)
-        
-        # if result != 'still':
-        #     logging.info(f"AI result: {result}\n\n\n")
         
         if self.difficulty == 1 and result != 'still':
             if random.choice([0, 1, 2]) == 1:
@@ -105,39 +92,12 @@ class GameAgent:
 
         # await self.compare_positions(state, self.raw_position, self.side, result)
         return result
-    
-
-    # async def compare_positions(self, state, raw_position, side, result):
-        if result == 'up':
-            if side == "right":
-                new_pos = (state["paddle2"]["y"] * 1000) + (5 * (self.global_ai.ai.win_height / 333))
-                if raw_position != new_pos:
-                    logging.info(f"compare_positions: Error in position: {raw_position}, new_pos: {new_pos}\n\n")
-            else:
-                if round(raw_position) != round(state["paddle1"]["y"] * 1000):
-                    logging.info(f"Error in position: {raw_position}, state position: {state['paddle1']['y'] * 1000}\n\n")
-        elif result == 'down':
-            if side == "right":
-                if round(raw_position) != round(state["paddle2"]["y"] * 1000):
-                    logging.info(f"Error in position: {raw_position}, state position: {state['paddle2']['y'] * 1000}\n\n")
-            else:
-                if round(raw_position) != round(state["paddle1"]["y"] * 1000):
-                    logging.info(f"Error in position: {raw_position}, state position: {state['paddle1']['y'] * 1000}\n\n")
 
     async def convert_state(self, state) -> list:
 
         # logging.info(f"Converting state: {state}")
 
         res = []
-
-
-        # res.append(round(state["ball"]["x"], 1))
-        # res.append(round(state["ball"]["y"], 1))
-        # res.append(round(state["ball"]["rounded_angle"], 1))
-        # if self.side == "right":
-        #     res.append(round(state["paddle2"]["y"], 1))
-        # else:
-        #     res.append(round(state["paddle1"]["y"], 1))
 
         res.append(await self.round_value(state["ball"]["x"]))
         res.append(await self.round_value(state["ball"]["y"]))
@@ -152,12 +112,6 @@ class GameAgent:
         coll.append(state["ball"]["next_collision"][1])
 
         res.append(coll)
-        #
-        # if self.difficulty == 1:
-        #     res[0] += round(random.uniform(-0.3, 0.3),1)
-        #     res[1] += round(random.uniform(-0.3, 0.3),1)
-        #     res[2] += round(random.uniform(-0.3, 0.3),1)
-        # res[4][1] = round(res[4][1] / self.win_height, 1)
 
         self.next_collision = res.pop()
         if self.difficulty == 1 and self.training is False:
@@ -166,9 +120,11 @@ class GameAgent:
         # logging.info(f"Converted state: {res}")
         return res
 
+
     async def round_value(self, nb):
         #round nb to 0.05
         return round(nb * 20) / 20
+
 
 class AIService:
     def __init__(self):
@@ -230,12 +186,7 @@ class AIService:
                 try:
                     message = await websocket.recv()
                     event = json.loads(message)
-                    if event["type"] == "setup":
-                        await websocket.send(json.dumps({
-                            'type': 'setup',
-                            'sender': 'AI'
-                        }))
-                    elif event["type"] == "None":
+                    if event["type"] == "None":
                         await self.process_and_send_action(websocket, event, game_uid)
                     elif event["type"] == "gameover":
                         logging.info(f"AI: Game over for game {game_uid}")
@@ -276,7 +227,6 @@ class AIService:
                 )
                 if response.status_code == 200:
                     data = response.json()
-                    # logging.info(f"Checking for new game: {data}")
                     if data.get('uid') != 'error':
                         uid = data['uid']
                         if uid not in self.game_instances:
