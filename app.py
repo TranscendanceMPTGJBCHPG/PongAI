@@ -9,6 +9,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import threading
 from pong_ql import QL_AI
 import random
+import os
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -189,7 +190,7 @@ class AIService:
                     if event["type"] == "None":
                         await self.process_and_send_action(websocket, event, game_uid)
                     elif event["type"] == "gameover":
-                        logging.info(f"AI: Game over for game {game_uid}")
+                        # logging.info(f"AI: Game over for game {game_uid}")
                         await self.cleanup_ai_instance(game_uid)
                         return
                     await asyncio.sleep(0.001)
@@ -223,7 +224,8 @@ class AIService:
             try:
                 response = requests.get(
                     "https://nginx:7777/game/join/?mode=AI",
-                    verify=False
+                    verify=False,
+                    headers={"Authorization": f"{os.getenv('AI_SERVICE_TOKEN')}"}
                 )
                 if response.status_code == 200:
                     data = response.json()
@@ -232,7 +234,7 @@ class AIService:
                         if uid not in self.game_instances:
                             self.add_game_instance(uid)
                             asyncio.create_task(self.join_game(uid))
-                            logging.info(f"Joining new game: {uid}")
+                            # logging.info(f"Joining new game: {uid}")
             except Exception as e:
                 logging.error(f"Error in continuous_listen_for_uid: {e}")
 
