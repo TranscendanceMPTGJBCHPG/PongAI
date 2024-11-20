@@ -1,2 +1,4 @@
 websockets
 numpy
+aiohttp
+requests>=2.31.0
