@@ -201,20 +201,49 @@ class AIService:
             await self.cleanup_ai_instance(game_uid)
             return
 
+    # async def join_game(self, uid: str):
+    #     uri = f"wss://nginx:7777/ws/pong/{uid}/"
+    #     ssl_context = ssl.create_default_context()
+    #     ssl_context.check_hostname = False
+    #     ssl_context.verify_mode = ssl.CERT_NONE
+    #
+    #     try:
+    #         async with websockets.connect(uri, ssl=ssl_context) as websocket:
+    #             print(f"IA connectée à la partie {uid}")
+    #             await websocket.send(json.dumps({
+    #                 "type": "greetings",
+    #                 "sender": "AI"
+    #             }))
+    #             await self.listen_for_messages(websocket, uid)
+    #     except Exception as e:
+    #         logging.error(f"Error in join_game for {uid}: {e}")
+    #         await self.cleanup_ai_instance(uid)
+
     async def join_game(self, uid: str):
         uri = f"wss://nginx:7777/ws/pong/{uid}/"
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
+        # Récupérer et nettoyer le token de service
+        ai_token = os.getenv('AI_SERVICE_TOKEN', '').replace('Bearer', '').strip()
+
         try:
-            async with websockets.connect(uri, ssl=ssl_context) as websocket:
+            # Ajouter le token dans les sous-protocoles
+            async with websockets.connect(
+                    uri,
+                    ssl=ssl_context,
+                    subprotocols=[f'token_{ai_token}']  # Ajouter le token comme sous-protocole
+            ) as websocket:
                 print(f"IA connectée à la partie {uid}")
                 await websocket.send(json.dumps({
                     "type": "greetings",
                     "sender": "AI"
                 }))
                 await self.listen_for_messages(websocket, uid)
+        except websockets.exceptions.InvalidStatusCode as e:
+            logging.error(f"Auth error in join_game for {uid}: {e}")
+            await self.cleanup_ai_instance(uid)
         except Exception as e:
             logging.error(f"Error in join_game for {uid}: {e}")
             await self.cleanup_ai_instance(uid)
