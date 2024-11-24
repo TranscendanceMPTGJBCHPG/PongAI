@@ -53,7 +53,7 @@ class GameAgent:
     async def get_action(self, state):
         if time.time() - self.limit_timestamp < 1/60:
             return 'wait'
-        # logging.info(f"Received state: {state}")
+#         # logging.info(f"Received state: {state}")
         if state['type'] == 'gameover':
             return 'Error'
         self.pause = state['game']['pause']
@@ -62,7 +62,7 @@ class GameAgent:
                 self.raw_position = state["paddle2"]["y"] * 1000
             else:
                 self.raw_position = state["paddle1"]["y"] * 1000
-            logging.info(f"Initial position: {self.raw_position}")
+            # logging.info(f"Initial position: {self.raw_position}")
        
         if state["resumeOnGoal"] is True:
             self.update_timestamp = 0
@@ -79,13 +79,11 @@ class GameAgent:
                 result = 'still'
             
         if result == 'up':
-            # for _ in range(10):
             for _ in range(5):
                 self.raw_position = self.raw_position - 3
                 if self.raw_position < self.min_position:
                     self.raw_position = self.min_position
         elif result == 'down':
-            # for _ in range(10):
             for _ in range(5):
                 self.raw_position = self.raw_position + 3
                 if self.raw_position > self.max_position:
@@ -96,7 +94,7 @@ class GameAgent:
 
     async def convert_state(self, state) -> list:
 
-        # logging.info(f"Converting state: {state}")
+#         # logging.info(f"Converting state: {state}")
 
         res = []
 
@@ -118,7 +116,7 @@ class GameAgent:
         if self.difficulty == 1 and self.training is False:
             self.next_collision[1] += random.uniform(-50, 50)
             
-        # logging.info(f"Converted state: {res}")
+#         # logging.info(f"Converted state: {res}")
         return res
 
 
@@ -143,7 +141,7 @@ class AIService:
 
     def add_game_instance(self, uid: str):
         difficulty = self._get_difficulty_from_uid(uid)
-        # logging.info(f"Adding game instance for {uid} with difficulty {difficulty}")
+#         # logging.info(f"Adding game instance for {uid} with difficulty {difficulty}")
         global_ai = self.global_models[difficulty]
         self.game_instances[uid] = {'ai': GameAgent(global_ai)}
 
@@ -164,7 +162,7 @@ class AIService:
                     return
                 
                 elif action == 'wait':
-                    logging.info(f"Waiting for action for game {uid}\n\n\n")
+#                     logging.info(f"Waiting for action for game {uid}\n\n\n")
                     return
 
                 await websocket.send(json.dumps({
@@ -179,7 +177,7 @@ class AIService:
     async def cleanup_ai_instance(self, uid: str):
         if uid in self.game_instances:
             del self.game_instances[uid]
-            logging.info(f"Cleaned up AI instance for game {uid}")
+#             logging.info(f"Cleaned up AI instance for game {uid}")
 
     async def listen_for_messages(self, websocket, game_uid):
         try:
@@ -190,7 +188,7 @@ class AIService:
                     if event["type"] == "None":
                         await self.process_and_send_action(websocket, event, game_uid)
                     elif event["type"] == "gameover":
-                        # logging.info(f"AI: Game over for game {game_uid}")
+#                         # logging.info(f"AI: Game over for game {game_uid}")
                         await self.cleanup_ai_instance(game_uid)
                         return
                     await asyncio.sleep(0.001)
@@ -200,24 +198,6 @@ class AIService:
             print(f"Connection closed for game {game_uid}")
             await self.cleanup_ai_instance(game_uid)
             return
-
-    # async def join_game(self, uid: str):
-    #     uri = f"wss://nginx:7777/ws/pong/{uid}/"
-    #     ssl_context = ssl.create_default_context()
-    #     ssl_context.check_hostname = False
-    #     ssl_context.verify_mode = ssl.CERT_NONE
-    #
-    #     try:
-    #         async with websockets.connect(uri, ssl=ssl_context) as websocket:
-    #             print(f"IA connectée à la partie {uid}")
-    #             await websocket.send(json.dumps({
-    #                 "type": "greetings",
-    #                 "sender": "AI"
-    #             }))
-    #             await self.listen_for_messages(websocket, uid)
-    #     except Exception as e:
-    #         logging.error(f"Error in join_game for {uid}: {e}")
-    #         await self.cleanup_ai_instance(uid)
 
     async def join_game(self, uid: str):
         uri = f"wss://nginx:7777/ws/pong/{uid}/"
@@ -263,7 +243,7 @@ class AIService:
                         if uid not in self.game_instances:
                             self.add_game_instance(uid)
                             asyncio.create_task(self.join_game(uid))
-                            # logging.info(f"Joining new game: {uid}")
+#                             # logging.info(f"Joining new game: {uid}")
             except Exception as e:
                 logging.error(f"Error in continuous_listen_for_uid: {e}")
 

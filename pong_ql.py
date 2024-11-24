@@ -3,6 +3,120 @@ import pickle
 import random
 import time
 import logging
+import hashlib
+from pathlib import Path
+import os
+import threading
+
+
+class QTableManager:
+    def __init__(self, base_path="/app/ai_data"):
+        self.base_path = Path(base_path)
+        self.base_path.mkdir(parents=True, exist_ok=True)
+        self.lock = threading.Lock()
+        # logging.info(f"SecureQTableManager initialisé avec le chemin de base: {self.base_path}")
+
+    def _get_file_paths(self, name, side):
+        safe_name = "".join(c for c in name if c.isalnum() or c in "._-")
+        suffix = "_left" if side == "left" else ""
+        pkl_path = self.base_path / f"AI_{safe_name}{suffix}.pkl"
+        hash_path = self.base_path / f"AI_{safe_name}{suffix}.hash"
+        # logging.debug(f"Chemins générés - PKL: {pkl_path}, Hash: {hash_path}")
+        return pkl_path, hash_path
+
+    def _calculate_hash(self, data):
+        """Calcule le hash SHA-256 des données"""
+        hash_value = hashlib.sha256(pickle.dumps(data)).hexdigest()
+        # logging.debug(f"Hash calculé: {hash_value[:10]}...")
+        return hash_value
+
+    def _create_empty_qtable(self):
+        """Crée une nouvelle Q-table vide"""
+        return {}
+
+    async def save(self, qtable, name, side="right"):
+        with self.lock:
+            pkl_path, hash_path = self._get_file_paths(name, side)
+            temp_pkl = pkl_path.with_suffix('.tmp')
+            temp_hash = hash_path.with_suffix('.tmp')
+
+            try:
+                # logging.info(f"Début de la sauvegarde - Fichier PKL: {pkl_path}")
+
+                if hasattr(os, 'statvfs'):
+                    stats = os.statvfs(self.base_path)
+                    free_space = stats.f_frsize * stats.f_bfree
+                    data_size = len(pickle.dumps(qtable))
+                    if data_size > free_space:
+                        logging.error("Espace disque insuffisant")
+                        return False
+
+                hash_value = self._calculate_hash(qtable)
+
+                with open(temp_pkl, 'wb') as f:
+                    pickle.dump(qtable, f)
+                    # logging.debug(f"Données sauvegardées dans {temp_pkl}")
+
+                with open(temp_hash, 'w') as f:
+                    f.write(hash_value)
+                    # logging.debug(f"Hash sauvegardé dans {temp_hash}")
+
+                temp_pkl.rename(pkl_path)
+                temp_hash.rename(hash_path)
+
+                # logging.info(f"Sauvegarde réussie - PKL: {pkl_path}, Hash: {hash_path}")
+                return True
+
+            except Exception as e:
+                logging.error(f"Erreur lors de la sauvegarde: {e}")
+                for temp_file in [temp_pkl, temp_hash]:
+                    if temp_file.exists():
+                        temp_file.unlink()
+                return False
+
+    def load(self, name, side="right"):
+        with self.lock:
+            pkl_path, hash_path = self._get_file_paths(name, side)
+
+            try:
+                logging.info(f"Tentative de chargement - PKL: {pkl_path}")
+
+                if not pkl_path.exists():
+                    logging.info(f"Fichier PKL non trouvé: {pkl_path}")
+                    return self._create_empty_qtable()
+
+                if pkl_path.stat().st_size == 0:
+                    logging.warning(f"Fichier PKL vide: {pkl_path}")
+                    return self._create_empty_qtable()
+
+                with open(pkl_path, 'rb') as f:
+                    qtable = pickle.load(f)
+
+                if hash_path.exists():
+                    with open(hash_path, 'r') as f:
+                        stored_hash = f.read().strip()
+                        current_hash = self._calculate_hash(qtable)
+
+                        if stored_hash != current_hash:
+                            logging.error(f"""
+                            Intégrité compromise pour {pkl_path}
+                            Hash stocké: {stored_hash[:10]}...
+                            Hash calculé: {current_hash[:10]}...
+                            """)
+                            return self._create_empty_qtable()
+                else:
+                    logging.warning(f"Fichier hash non trouvé: {hash_path}")
+                    hash_value = self._calculate_hash(qtable)
+                    with open(hash_path, 'w') as f:
+                        f.write(hash_value)
+                    logging.info(f"Nouveau fichier hash créé: {hash_path}")
+
+                logging.info(f"Chargement réussi - PKL: {pkl_path}")
+                return qtable
+
+            except Exception as e:
+                logging.error(f"Erreur lors du chargement: {e}")
+                return self._create_empty_qtable()
 
 class QL_AI:
     
@@ -17,11 +131,12 @@ class QL_AI:
 
         self.alpha = 0.4
         self.gamma = 0.7
-        self.epsilon_decay = 0.0001 #baisse du taux d'apprentissage au fur et a mesure du jeu
+        self.epsilon_decay = 0.0001
         self.epsilon_min = 0.01
 
         self.difficulty = difficulty
         self.qtable = {}
+        self.qtable_manager = QTableManager()
 
         self.counter = 0
 
@@ -32,30 +147,24 @@ class QL_AI:
 
         # self.loading = False
         # self.training = True
-        # self.saving = True
+        # self.saving = False
         # self.epsilon = 1
 
         if self.loading is True:
             self.init_ai_modes()
 
     def init_ai_modes(self):
-        if self.loading == True:
-            if self.difficulty == 3:
-                if self.side == "right":
-                    self.load("/app/ai_data/AI_hard.pkl")
-                else:
-                    self.load("/app/ai_data/AI_hard_left.pkl")
-                    print("loaded hard AI Player 1")
-            elif self.difficulty == 2:
-                if self.side == "right":
-                    self.load("/app/ai_data/AI_medium.pkl")
-                else:
-                    self.load("/app/ai_data/AI_medium_left.pkl")
-            elif self.difficulty == 1:
-                if self.side == "right":
-                    self.load("/app/ai_data/AI_easy.pkl")
-                else:
-                    self.load("/app/ai_data/AI_easy_left.pkl")
+        if self.loading:
+            difficulty_map = {
+                3: "hard",
+                2: "medium",
+                1: "easy"
+            }
+            name = difficulty_map.get(self.difficulty)
+            if name:
+                loaded_qtable = self.qtable_manager.load(name, self.side)
+                if loaded_qtable is not None:
+                    self.qtable = loaded_qtable
 
 
     def epsilon_greedy(self):
@@ -100,14 +209,6 @@ class QL_AI:
 
         reward = self.getReward(next_collision, action, raw_pos, self.difficulty)
         self.upadateQTable(repr(state), action, reward, repr(state))
-
-        # if (len(self.qtable) >= 8000) and self.saving == True:
-        #     await self.save_wrapper()
-        #     exit()
-        # self.counter += 1
-        # if self.counter == 100:
-        #     await self.save_wrapper()
-        #     self.counter = 0
             
         if action == 1:
             return "up"
@@ -117,13 +218,15 @@ class QL_AI:
     
 
     async def save_wrapper(self):
-        if self.saving is True:
-            if self.difficulty == 3:
-                await self.save("hard")
-            elif self.difficulty == 2:
-                await self.save("medium")
-            elif self.difficulty == 1:
-                await self.save("easy")
+        if self.saving:
+            difficulty_map = {
+                3: "hard",
+                2: "medium",
+                1: "easy"
+            }
+            name = difficulty_map.get(self.difficulty)
+            if name:
+                await self.qtable_manager.save(self.qtable, name, self.side)
     
 
     def upadateQTable(self, state, action, reward, nextState):
@@ -197,12 +300,10 @@ class QL_AI:
                     else:
                         result = minReward
             else:
-                # print(f"difficulty = {self.difficulty}")
                 if action == up or action == down:
                     result = minReward
                 else:
                     result = maxReward
-        # print(f"reward: {result}")
         return result
 
 
