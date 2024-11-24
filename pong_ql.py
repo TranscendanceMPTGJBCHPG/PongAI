@@ -12,27 +12,96 @@ import threading
 class QTableManager:
     def __init__(self, base_path="/app/ai_data"):
         self.base_path = Path(base_path)
-        self.base_path.mkdir(parents=True, exist_ok=True)
+        try:
+            self.base_path.mkdir(parents=True, exist_ok=True)
+            os.chmod(self.base_path, 0o775)
+
+            # Récupération de la clé secrète
+            self.secret = os.getenv('AI_HASH_SECRET')
+            logging.info(f"secret: {self.secret}")
+            if not self.secret:
+                logging.error("HASH_SECRET non définie! Utilisation d'une clé par défaut non sécurisée")
+                self.secret = "default_secret_key_not_secure"
+
+            logging.info(f"SecureQTableManager initialisé - Chemin: {self.base_path}")
+        except Exception as e:
+            logging.error(f"Erreur d'initialisation: {e}")
         self.lock = threading.Lock()
-        # logging.info(f"SecureQTableManager initialisé avec le chemin de base: {self.base_path}")
 
     def _get_file_paths(self, name, side):
+        """Génère les chemins des fichiers de manière sécurisée"""
         safe_name = "".join(c for c in name if c.isalnum() or c in "._-")
         suffix = "_left" if side == "left" else ""
         pkl_path = self.base_path / f"AI_{safe_name}{suffix}.pkl"
         hash_path = self.base_path / f"AI_{safe_name}{suffix}.hash"
-        # logging.debug(f"Chemins générés - PKL: {pkl_path}, Hash: {hash_path}")
         return pkl_path, hash_path
 
+    def _convert_numpy_arrays(self, data):
+        """Convertit les arrays numpy en listes Python"""
+        if isinstance(data, dict):
+            return {k: v.tolist() if hasattr(v, 'tolist') else v for k, v in data.items()}
+        return data
+
     def _calculate_hash(self, data):
-        """Calcule le hash SHA-256 des données"""
-        hash_value = hashlib.sha256(pickle.dumps(data)).hexdigest()
-        # logging.debug(f"Hash calculé: {hash_value[:10]}...")
-        return hash_value
+        """Calcule le hash SHA-256 avec la clé secrète"""
+        # Convertir les arrays numpy en listes
+        data = self._convert_numpy_arrays(data)
+
+        logging.info(f"Type des données après conversion: {type(data)}")
+        if isinstance(data, dict):
+            logging.info(f"Taille du dictionnaire: {len(data)}")
+            first_item = next(iter(data.items())) if data else None
+            logging.info(f"Premier élément du dictionnaire après conversion: {first_item}")
+
+        secret_bytes = self.secret.encode('utf-8')
+
+        if isinstance(data, dict):
+            from collections import OrderedDict
+            data = OrderedDict(sorted(data.items()))
+
+        data_bytes = pickle.dumps(data, protocol=2)
+
+        return hashlib.sha256(secret_bytes + data_bytes).hexdigest()
 
     def _create_empty_qtable(self):
         """Crée une nouvelle Q-table vide"""
         return {}
+
+    def load(self, name, side="right"):
+        with self.lock:
+            pkl_path, hash_path = self._get_file_paths(name, side)
+
+            try:
+                # Cas 1: Fichier inexistant ou vide
+                if not pkl_path.exists() or pkl_path.stat().st_size == 0:
+                    logging.info(f"Création d'une nouvelle Q-table (fichier absent ou vide): {pkl_path}")
+                    return self._create_empty_qtable()
+
+                # Cas 2: Fichier existe avec des données
+                with open(pkl_path, 'rb') as f:
+                    qtable = pickle.load(f)
+
+                # Vérification du hash
+                if not hash_path.exists():
+                    logging.warning(f"Hash manquant pour un fichier non-vide: {pkl_path}")
+                    return self._create_empty_qtable()
+
+                with open(hash_path, 'r') as f:
+                    stored_hash = f.read().strip()
+                    current_hash = self._calculate_hash(qtable)
+
+                    print(f"stored_hash = {stored_hash}, current_hash = {current_hash} for pkl_file = {pkl_path} and secret = {self.secret}")
+
+                    if stored_hash != current_hash:
+                        logging.warning(f"Hash incorrect pour: {pkl_path}")
+                        return self._create_empty_qtable()
+
+                logging.info(f"Q-table chargée avec succès: {pkl_path}")
+                return qtable
+
+            except Exception as e:
+                logging.error(f"Erreur lors du chargement: {e}")
+                return self._create_empty_qtable()
 
     async def save(self, qtable, name, side="right"):
         with self.lock:
@@ -41,83 +110,29 @@ class QTableManager:
             temp_hash = hash_path.with_suffix('.tmp')
 
             try:
-                # logging.info(f"Début de la sauvegarde - Fichier PKL: {pkl_path}")
-
-                if hasattr(os, 'statvfs'):
-                    stats = os.statvfs(self.base_path)
-                    free_space = stats.f_frsize * stats.f_bfree
-                    data_size = len(pickle.dumps(qtable))
-                    if data_size > free_space:
-                        logging.error("Espace disque insuffisant")
-                        return False
-
-                hash_value = self._calculate_hash(qtable)
-
+                # Sauvegarder les données
                 with open(temp_pkl, 'wb') as f:
                     pickle.dump(qtable, f)
-                    # logging.debug(f"Données sauvegardées dans {temp_pkl}")
 
+                # Créer/mettre à jour le hash sécurisé
+                hash_value = self._calculate_hash(qtable)
                 with open(temp_hash, 'w') as f:
                     f.write(hash_value)
-                    # logging.debug(f"Hash sauvegardé dans {temp_hash}")
 
+                # Renommer de manière atomique
                 temp_pkl.rename(pkl_path)
                 temp_hash.rename(hash_path)
 
-                # logging.info(f"Sauvegarde réussie - PKL: {pkl_path}, Hash: {hash_path}")
+                logging.info(f"Q-table et hash sauvegardés: {pkl_path}")
                 return True
 
             except Exception as e:
                 logging.error(f"Erreur lors de la sauvegarde: {e}")
+                # Nettoyage
                 for temp_file in [temp_pkl, temp_hash]:
                     if temp_file.exists():
                         temp_file.unlink()
                 return False
-
-    def load(self, name, side="right"):
-        with self.lock:
-            pkl_path, hash_path = self._get_file_paths(name, side)
-
-            try:
-                logging.info(f"Tentative de chargement - PKL: {pkl_path}")
-
-                if not pkl_path.exists():
-                    logging.info(f"Fichier PKL non trouvé: {pkl_path}")
-                    return self._create_empty_qtable()
-
-                if pkl_path.stat().st_size == 0:
-                    logging.warning(f"Fichier PKL vide: {pkl_path}")
-                    return self._create_empty_qtable()
-
-                with open(pkl_path, 'rb') as f:
-                    qtable = pickle.load(f)
-
-                if hash_path.exists():
-                    with open(hash_path, 'r') as f:
-                        stored_hash = f.read().strip()
-                        current_hash = self._calculate_hash(qtable)
-
-                        if stored_hash != current_hash:
-                            logging.error(f"""
-                            Intégrité compromise pour {pkl_path}
-                            Hash stocké: {stored_hash[:10]}...
-                            Hash calculé: {current_hash[:10]}...
-                            """)
-                            return self._create_empty_qtable()
-                else:
-                    logging.warning(f"Fichier hash non trouvé: {hash_path}")
-                    hash_value = self._calculate_hash(qtable)
-                    with open(hash_path, 'w') as f:
-                        f.write(hash_value)
-                    logging.info(f"Nouveau fichier hash créé: {hash_path}")
-
-                logging.info(f"Chargement réussi - PKL: {pkl_path}")
-                return qtable
-
-            except Exception as e:
-                logging.error(f"Erreur lors du chargement: {e}")
-                return self._create_empty_qtable()
-
 class QL_AI:
     
     def __init__(self, width, height, paddle_width, paddle_height, difficulty, side) -> None:
