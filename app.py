@@ -236,7 +236,8 @@ class AIService:
                     verify=False,
                     headers={"Authorization": f"{os.getenv('AI_SERVICE_TOKEN')}"}
                 )
-                if response.status_code == 200:
+                # logging.info(f"Response: {response}")
+                if response.status_code in [200, 404]:
                     data = response.json()
                     if data.get('uid') != 'error':
                         uid = data['uid']
@@ -257,4 +258,5 @@ if __name__ == "__main__":
     )
 
     ai_service = AIService()
+    
     asyncio.run(ai_service.continuous_listen_for_uid())
