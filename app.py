@@ -218,7 +218,8 @@ class AIService:
                 print(f"IA connectée à la partie {uid}")
                 await websocket.send(json.dumps({
                     "type": "greetings",
-                    "sender": "AI"
+                    "sender": "AI",
+                    "name": "AI"
                 }))
                 await self.listen_for_messages(websocket, uid)
         except websockets.exceptions.InvalidStatusCode as e:
