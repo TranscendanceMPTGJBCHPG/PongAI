@@ -40,6 +40,7 @@ class GameAgent:
     difficulty = None
     min_position = None
     max_position = None
+    action = None
 
 
     def __init__(self, global_ai):
@@ -67,7 +68,10 @@ class GameAgent:
         if state["resumeOnGoal"] is True:
             self.update_timestamp = 0
         if time.time() - self.update_timestamp >= 1 or self.training is True:
-            self.raw_position = state["paddle2"]["y"] * 1000
+            if self.side == "right":
+                self.raw_position = state["paddle2"]["y"] * 1000
+            else:
+                self.raw_position = state["paddle1"]["y"] * 1000
             self.game_state = await self.convert_state(state)
             self.update_timestamp = time.time()
             
@@ -89,6 +93,10 @@ class GameAgent:
                 if self.raw_position > self.max_position:
                     self.raw_position = self.max_position
 
+        if result == self.action:
+            return None
+
+        self.action = result
         # await self.compare_positions(state, self.raw_position, self.side, result)
         return result
 
@@ -157,6 +165,8 @@ class AIService:
         try:
             if uid in self.game_instances:
                 action = await self.game_instances[uid]['ai'].get_action(event)
+                if action is None:
+                    return
                 if action == "Error":
                     await self.cleanup_ai_instance(uid)
                     return
