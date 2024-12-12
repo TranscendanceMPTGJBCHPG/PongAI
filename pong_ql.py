@@ -18,12 +18,12 @@ class QTableManager:
 
             # Récupération de la clé secrète
             self.secret = os.getenv('AI_HASH_SECRET')
-            logging.info(f"secret: {self.secret}")
+            # logging.info(f"secret: {self.secret}")
             if not self.secret:
                 logging.error("HASH_SECRET non définie! Utilisation d'une clé par défaut non sécurisée")
                 self.secret = "default_secret_key_not_secure"
 
-            logging.info(f"SecureQTableManager initialisé - Chemin: {self.base_path}")
+            # logging.info(f"SecureQTableManager initialisé - Chemin: {self.base_path}")
         except Exception as e:
             logging.error(f"Erreur d'initialisation: {e}")
         self.lock = threading.Lock()
@@ -47,11 +47,11 @@ class QTableManager:
         # Convertir les arrays numpy en listes
         data = self._convert_numpy_arrays(data)
 
-        logging.info(f"Type des données après conversion: {type(data)}")
+        # logging.info(f"Type des données après conversion: {type(data)}")
         if isinstance(data, dict):
-            logging.info(f"Taille du dictionnaire: {len(data)}")
+            # logging.info(f"Taille du dictionnaire: {len(data)}")
             first_item = next(iter(data.items())) if data else None
-            logging.info(f"Premier élément du dictionnaire après conversion: {first_item}")
+            # logging.info(f"Premier élément du dictionnaire après conversion: {first_item}")
 
         secret_bytes = self.secret.encode('utf-8')
 
@@ -74,7 +74,7 @@ class QTableManager:
             try:
                 # Cas 1: Fichier inexistant ou vide
                 if not pkl_path.exists() or pkl_path.stat().st_size == 0:
-                    logging.info(f"Création d'une nouvelle Q-table (fichier absent ou vide): {pkl_path}")
+                    # logging.info(f"Création d'une nouvelle Q-table (fichier absent ou vide): {pkl_path}")
                     return self._create_empty_qtable()
 
                 # Cas 2: Fichier existe avec des données
@@ -90,13 +90,13 @@ class QTableManager:
                     stored_hash = f.read().strip()
                     current_hash = self._calculate_hash(qtable)
 
-                    print(f"stored_hash = {stored_hash}, current_hash = {current_hash} for pkl_file = {pkl_path} and secret = {self.secret}")
+                    # print(f"stored_hash = {stored_hash}, current_hash = {current_hash} for pkl_file = {pkl_path} and secret = {self.secret}")
 
                     if stored_hash != current_hash:
                         logging.warning(f"Hash incorrect pour: {pkl_path}")
                         return self._create_empty_qtable()
 
-                logging.info(f"Q-table chargée avec succès: {pkl_path}")
+                # logging.info(f"Q-table chargée avec succès: {pkl_path}")
                 return qtable
 
             except Exception as e:
@@ -123,7 +123,7 @@ class QTableManager:
                 temp_pkl.rename(pkl_path)
                 temp_hash.rename(hash_path)
 
-                logging.info(f"Q-table et hash sauvegardés: {pkl_path}")
+                # logging.info(f"Q-table et hash sauvegardés: {pkl_path}")
                 return True
 
             except Exception as e:

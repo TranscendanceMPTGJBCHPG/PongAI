@@ -232,9 +232,9 @@ class AIService:
                     "name": "AI"
                 }))
                 await self.listen_for_messages(websocket, uid)
-        except websockets.exceptions.InvalidStatusCode as e:
-            logging.error(f"Auth error in join_game for {uid}: {e}")
-            await self.cleanup_ai_instance(uid)
+        # except websockets.exceptions.InvalidStatusCode as e:
+        #     logging.error(f"Auth error in join_game for {uid}: {e}")
+        #     await self.cleanup_ai_instance(uid)
         except Exception as e:
             logging.error(f"Error in join_game for {uid}: {e}")
             await self.cleanup_ai_instance(uid)
