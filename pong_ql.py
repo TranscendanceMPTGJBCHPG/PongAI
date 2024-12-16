@@ -83,7 +83,7 @@ class QTableManager:
 
                 # Vérification du hash
                 if not hash_path.exists():
-                    logging.warning(f"Hash manquant pour un fichier non-vide: {pkl_path}")
+                    # logging.warning(f"Hash manquant pour un fichier non-vide: {pkl_path}")
                     return self._create_empty_qtable()
 
                 with open(hash_path, 'r') as f:
@@ -93,7 +93,7 @@ class QTableManager:
                     # print(f"stored_hash = {stored_hash}, current_hash = {current_hash} for pkl_file = {pkl_path} and secret = {self.secret}")
 
                     if stored_hash != current_hash:
-                        logging.warning(f"Hash incorrect pour: {pkl_path}")
+                        # logging.warning(f"Hash incorrect pour: {pkl_path}")
                         return self._create_empty_qtable()
 
                 # logging.info(f"Q-table chargée avec succès: {pkl_path}")

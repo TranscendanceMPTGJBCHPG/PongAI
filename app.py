@@ -205,7 +205,7 @@ class AIService:
                 except asyncio.TimeoutError:
                     continue
         except websockets.exceptions.ConnectionClosedError:
-            print(f"Connection closed for game {game_uid}")
+            # print(f"Connection closed for game {game_uid}")
             await self.cleanup_ai_instance(game_uid)
             return
 
@@ -225,7 +225,7 @@ class AIService:
                     ssl=ssl_context,
                     subprotocols=[f'token_{ai_token}']  # Ajouter le token comme sous-protocole
             ) as websocket:
-                print(f"IA connectée à la partie {uid}")
+                # print(f"IA connectée à la partie {uid}")
                 await websocket.send(json.dumps({
                     "type": "greetings",
                     "sender": "AI",
