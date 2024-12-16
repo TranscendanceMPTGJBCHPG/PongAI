@@ -1,4 +1,4 @@
-websockets
-numpy
-aiohttp
-requests>=2.31.0
+websockets==12.0
+numpy==1.26.4
+aiohttp==3.9.3
+requests==2.31.0
